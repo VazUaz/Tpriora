@@ -1,0 +1,580 @@
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: radial-gradient(circle at top, #020617 0, #020617 40%, #020617 100%);
+    color: #e5e7eb;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* ===== Аутентификация ===== */
+
+.auth-overlay {
+    position: fixed;
+    inset: 0;
+    background: radial-gradient(circle at top, rgba(59,130,246,0.25), transparent 55%),
+                radial-gradient(circle at bottom, rgba(236,72,153,0.2), transparent 50%),
+                #020617ee;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    backdrop-filter: blur(10px);
+}
+
+.auth-card {
+    width: 340px;
+    max-width: 90vw;
+    background: #020617;
+    border-radius: 18px;
+    padding: 22px 20px 18px;
+    border: 1px solid rgba(148,163,184,0.3);
+    box-shadow: 0 24px 60px rgba(0,0,0,0.8);
+}
+
+.auth-card h1 {
+    font-size: 24px;
+    margin-bottom: 14px;
+    background: linear-gradient(135deg, #38bdf8, #f97316);
+    -webkit-background-clip: text;
+    color: transparent;
+}
+
+.auth-card label {
+    display: block;
+    font-size: 14px;
+    margin-bottom: 10px;
+}
+
+.auth-card input {
+    margin-top: 4px;
+    width: 100%;
+    padding: 7px 9px;
+    border-radius: 10px;
+    border: 1px solid #4b5563;
+    background: #020617;
+    color: #e5e7eb;
+    font-size: 14px;
+}
+
+.primary-btn {
+    margin-top: 8px;
+    width: 100%;
+    padding: 8px 10px;
+    border-radius: 999px;
+    border: none;
+    cursor: pointer;
+    background: linear-gradient(135deg, #22c55e, #16a34a);
+    color: #022c22;
+    font-weight: 600;
+}
+
+.auth-switch {
+    margin-top: 10px;
+    font-size: 13px;
+    color: #9ca3af;
+    text-align: center;
+}
+
+.link-btn {
+    background: none;
+    border: none;
+    color: #38bdf8;
+    cursor: pointer;
+    font-size: 13px;
+    text-decoration: underline;
+}
+
+.hidden {
+    display: none;
+}
+
+/* ===== Шапка ===== */
+
+.top-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 20px;
+    background: rgba(15,23,42,0.96);
+    border-bottom: 1px solid #111827;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    backdrop-filter: blur(10px);
+}
+
+.logo {
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #22d3ee;
+    font-size: 18px;
+}
+
+.logo span {
+    color: #f97316;
+}
+
+.nav {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.nav-btn {
+    background: rgba(15,23,42,0.6);
+    border-radius: 999px;
+    border: 1px solid rgba(148,163,184,0.5);
+    padding: 6px 12px;
+    color: #e5e7eb;
+    font-size: 13px;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.nav-btn:hover {
+    background: linear-gradient(135deg, #22d3ee, #f97316);
+    border-color: transparent;
+    color: #020617;
+}
+
+/* ===== Кнопка назад ===== */
+
+.back-btn {
+    margin: 14px 0 8px;
+    padding: 6px 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(148,163,184,0.5);
+    background: rgba(15,23,42,0.7);
+    color: #e5e7eb;
+    cursor: pointer;
+    font-size: 13px;
+    align-self: flex-start;
+    margin-left: 20px;
+    opacity: 0.85;
+}
+
+.back-btn:disabled {
+    opacity: 0.3;
+    cursor: default;
+}
+
+/* ===== Основной контент ===== */
+
+main {
+    flex: 1;
+    padding: 0 20px 20px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.section {
+    display: none;
+}
+
+.section.active {
+    display: block;
+}
+
+.section h1 {
+    font-size: 26px;
+    margin-bottom: 16px;
+    background: linear-gradient(135deg, #38bdf8, #f97316);
+    -webkit-background-clip: text;
+    color: transparent;
+}
+
+/* ===== Dashboard ===== */
+
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: 2fr 1.4fr;
+    gap: 20px;
+}
+
+.car-card,
+.quick-actions,
+.part-card,
+.profile-card,
+.calculator,
+.projects-list {
+    background: radial-gradient(circle at top left, rgba(56,189,248,0.16), transparent 55%),
+                radial-gradient(circle at bottom right, rgba(249,115,22,0.18), transparent 60%),
+                #020617;
+    border-radius: 18px;
+    padding: 16px 18px;
+    border: 1px solid rgba(15,23,42,0.9);
+    box-shadow: 0 18px 40px rgba(0,0,0,0.8);
+}
+
+.car-3d-wrapper {
+    border-radius: 14px;
+    overflow: hidden;
+    margin-bottom: 10px;
+    border: 1px solid rgba(148,163,184,0.5);
+    background: radial-gradient(circle at top, #1e293b, #020617);
+}
+
+.car-3d-wrapper iframe {
+    width: 100%;
+    height: 260px;
+}
+
+.quick-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 14px;
+}
+
+.quick-buttons button {
+    flex: 1 1 150px;
+    padding: 8px 10px;
+    border-radius: 999px;
+    border: none;
+    cursor: pointer;
+    background: linear-gradient(135deg, #06b6d4, #f97316);
+    color: #020617;
+    font-weight: 600;
+    font-size: 13px;
+    transition: 0.15s ease;
+}
+
+.quick-buttons button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 10px 25px rgba(56,189,248,0.5);
+}
+
+.notifications h3 {
+    font-size: 15px;
+    margin-bottom: 6px;
+}
+
+.notifications ul {
+    list-style: disc;
+    margin-left: 18px;
+    font-size: 14px;
+    color: #9ca3af;
+}
+
+/* ===== Фильтры и карточки ===== */
+
+.filters {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 18px;
+    flex-wrap: wrap;
+}
+
+.filters select {
+    background: rgba(15,23,42,0.8);
+    color: #e5e7eb;
+    border-radius: 999px;
+    border: 1px solid rgba(148,163,184,0.6);
+    padding: 6px 10px;
+    font-size: 13px;
+}
+
+.card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    gap: 16px;
+}
+
+.part-card img {
+    width: 100%;
+    height: 150px;
+    object-fit: cover;
+    border-radius: 12px;
+    margin-bottom: 8px;
+}
+
+.part-card h2 {
+    font-size: 17px;
+    margin-bottom: 4px;
+}
+
+.part-card p {
+    font-size: 14px;
+    margin-bottom: 4px;
+    color: #cbd5f5;
+}
+
+.price {
+    font-weight: 600;
+    color: #22c55e;
+}
+
+.add-btn {
+    margin-top: 8px;
+    padding: 8px 10px;
+    width: 100%;
+    border-radius: 999px;
+    border: none;
+    cursor: pointer;
+    background: linear-gradient(135deg, #22c55e, #16a34a);
+    color: #022c22;
+    font-weight: 600;
+}
+
+/* ===== Проекты и калькулятор ===== */
+
+.projects-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.5fr) minmax(0, 1.6fr);
+    gap: 20px;
+}
+
+#project-items {
+    list-style: none;
+    margin-top: 8px;
+    font-size: 14px;
+}
+
+#project-items li {
+    display: flex;
+    justify-content: space-between;
+    padding: 4px 0;
+    border-bottom: 1px dashed rgba(30,64,175,0.7);
+}
+
+#clear-project,
+#export-estimate {
+    margin-top: 10px;
+    padding: 8px 10px;
+    border-radius: 10px;
+    border: none;
+    cursor: pointer;
+    background: linear-gradient(135deg, #3b82f6, #a855f7);
+    color: #e5e7eb;
+    font-size: 13px;
+}
+
+.calculator label {
+    display: block;
+    margin-top: 8px;
+    margin-bottom: 6px;
+}
+
+.calculator input {
+    margin-top: 4px;
+    width: 100%;
+    padding: 6px 8px;
+    border-radius: 8px;
+    border: 1px solid rgba(148,163,184,0.6);
+    background: #020617;
+    color: #e5e7eb;
+}
+
+.hint {
+    margin-top: 8px;
+    font-size: 12px;
+    color: #9ca3af;
+}
+
+/* ===== Профиль ===== */
+
+.profile-card {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+}
+
+.avatar {
+    width: 56px;
+    height: 56px;
+    border-radius: 999px;
+    background: conic-gradient(from 140deg, #0ea5e9, #22c55e, #f97316, #0ea5e9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #020617;
+    font-weight: 700;
+    font-size: 26px;
+}
+
+.profile-card label {
+    display: block;
+    margin-top: 8px;
+}
+
+.profile-card select {
+    margin-top: 4px;
+    padding: 6px 8px;
+    border-radius: 8px;
+    border: 1px solid rgba(148,163,184,0.6);
+    background: #020617;
+    color: #e5e7eb;
+}
+
+.logout-btn {
+    margin-top: 10px;
+    padding: 8px 10px;
+    border-radius: 999px;
+    border: 1px solid rgba(148,163,184,0.7);
+    background: transparent;
+    color: #e5e7eb;
+    cursor: pointer;
+}
+
+/* ===== Подвал ===== */
+
+.footer {
+    text-align: center;
+    padding: 12px 10px;
+    background: #020617;
+    font-size: 13px;
+    color: #6b7280;
+    border-top: 1px solid #111827;
+}
+
+/* ===== Адаптив ===== */
+
+@media (max-width: 900px) {
+    .dashboard-grid,
+    .projects-layout {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 700px) {
+    .nav {
+        justify-content: center;
+    }
+    main {
+        padding: 0 12px 16px;
+    }
+    .car-3d-wrapper iframe {
+        height: 210px;
+    }
+}
+/* ===== Адаптив ===== */
+
+@media (max-width: 1024px) {
+    .dashboard-grid,
+    .projects-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .top-bar {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+
+    .nav {
+        width: 100%;
+        justify-content: flex-start;
+    }
+}
+
+@media (max-width: 768px) {
+    body {
+        font-size: 14px;
+    }
+
+    main {
+        padding: 0 10px 14px;
+    }
+
+    .top-bar {
+        padding: 10px 12px;
+    }
+
+    .logo {
+        font-size: 16px;
+    }
+
+    .nav {
+        justify-content: center;
+    }
+
+    .nav-btn {
+        padding: 5px 10px;
+        font-size: 12px;
+    }
+
+    .section h1 {
+        font-size: 22px;
+        margin-bottom: 10px;
+    }
+
+    .car-3d-wrapper iframe {
+        height: 200px;
+    }
+
+    .card-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+    }
+
+    .part-card img {
+        height: 130px;
+    }
+
+    .projects-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .auth-card {
+        width: 95vw;
+        padding: 18px 14px;
+    }
+}
+
+@media (max-width: 480px) {
+    .top-bar {
+        padding: 8px 10px;
+    }
+
+    .nav {
+        gap: 4px;
+    }
+
+    .nav-btn {
+        flex: 1 1 calc(50% - 6px);
+        text-align: center;
+        padding: 5px 6px;
+        font-size: 11px;
+    }
+
+    .back-btn {
+        margin-left: 10px;
+        font-size: 12px;
+        padding: 5px 10px;
+    }
+
+    .card-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .car-3d-wrapper iframe {
+        height: 180px;
+    }
+
+    .part-card h2 {
+        font-size: 16px;
+    }
+
+    .part-card p {
+        font-size: 13px;
+    }
+
+    .projects-layout {
+        gap: 12px;
+    }
+
+    .profile-card {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}

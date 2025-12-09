@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Priora Tuning</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<!-- Экран аутентификации -->
+<div id="auth-overlay" class="auth-overlay">
+    <div class="auth-card" id="login-card">
+        <h1>Вход</h1>
+        <form id="login-form">
+            <label>
+                Email
+                <input type="email" id="login-email" required>
+            </label>
+            <label>
+                Пароль
+                <input type="password" id="login-password" required>
+            </label>
+            <button type="submit" class="primary-btn">Войти</button>
+        </form>
+        <p class="auth-switch">
+            Нет аккаунта?
+            <button type="button" id="go-register" class="link-btn">Зарегистрироваться</button>
+        </p>
+    </div>
+
+    <div class="auth-card hidden" id="register-card">
+        <h1>Регистрация</h1>
+        <form id="register-form">
+            <label>
+                Имя
+                <input type="text" id="reg-name" required>
+            </label>
+            <label>
+                Email
+                <input type="email" id="reg-email" required>
+            </label>
+            <label>
+                Пароль
+                <input type="password" id="reg-password" required minlength="4">
+            </label>
+            <button type="submit" class="primary-btn">Создать аккаунт</button>
+        </form>
+        <p class="auth-switch">
+            Уже есть аккаунт?
+            <button type="button" id="go-login" class="link-btn">Войти</button>
+        </p>
+    </div>
+</div>
+
+<header class="top-bar">
+    <div class="logo">Priora<span>Tuning</span></div>
+    <nav class="nav">
+        <button class="nav-btn" data-section="dashboard">Главная</button>
+        <button class="nav-btn" data-section="engine">Двигатель</button>
+        <button class="nav-btn" data-section="exterior">Внешний тюнинг</button>
+        <button class="nav-btn" data-section="interior">Салон</button>
+        <button class="nav-btn" data-section="suspension">Подвеска</button>
+        <button class="nav-btn" data-section="electronics">Электроника</button>
+        <button class="nav-btn" data-section="projects">Мои проекты</button>
+        <button class="nav-btn" data-section="profile">Профиль</button>
+    </nav>
+</header>
+
+<main>
+    <button class="back-btn" id="back-btn" disabled>← Назад</button>
+
+    <!-- Dashboard -->
+    <section id="dashboard" class="section active">
+        <h1>Привет, <span id="user-name-title">Иван</span>!</h1>
+        <div class="dashboard-grid">
+            <div class="car-card">
+                <h2>Твоя LADA Priora</h2>
+                <!-- 3D Priora со Sketchfab (CC‑BY) -->
+                <div class="car-3d-wrapper">
+                    <iframe
+                        title="LADA Priora 3D"
+                        frameborder="0"
+                        allowfullscreen
+                        mozallowfullscreen="true"
+                        webkitallowfullscreen="true"
+                        src="https://sketchfab.com/models/9d3fd7a870464a33a98fda41c818578b/embed">
+                    </iframe>
+                </div>
+                <p>Текущие модификации: Stage 1, обвес Street, диски 17”, койловеры, салон Sport.</p>
+            </div>
+
+            <div class="quick-actions">
+                <h2>Быстрый доступ</h2>
+                <div class="quick-buttons">
+                    <button data-section="engine">Тюнинг двигателя</button>
+                    <button data-section="exterior">Внешний тюнинг</button>
+                    <button data-section="interior">Внутренний тюнинг</button>
+                    <button data-section="suspension">Подвеска</button>
+                    <button data-section="electronics">Электроника</button>
+                    <button data-section="projects">Мои проекты</button>
+                </div>
+                <div class="notifications">
+                    <h3>Уведомления</h3>
+                    <ul>
+                        <li>Новые комплекты койловеров добавлены в каталог.</li>
+                        <li>Скидка 20% на LED‑оптику до конца недели.</li>
+                        <li>Priora Club: свежие проекты в сообществе.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Двигатель -->
+    <section id="engine" class="section" data-category="engine">
+        <h1>Тюнинг двигателя</h1>
+        <div class="filters">
+            <select class="filter-category">
+                <option value="all">Все категории</option>
+                <option value="chip">Чип‑тюнинг</option>
+                <option value="turbo">Турбина</option>
+                <option value="exhaust">Выхлоп</option>
+                <option value="intake">Впуск</option>
+                <option value="cooling">Охлаждение</option>
+            </select>
+            <select class="filter-sort">
+                <option value="default">Без сортировки</option>
+                <option value="asc">Цена: по возрастанию</option>
+                <option value="desc">Цена: по убыванию</option>
+            </select>
+        </div>
+        <div class="card-grid catalog-grid">
+            <article class="part-card" data-name="Чип‑тюнинг Stage 1" data-price="8000" data-type="chip">
+                <img src="https://avatars.mds.yandex.net/i?id=e9a62f75b08328fc796111bbe18a1bf7_l-3589653-images-thumbs&n=13" alt="Чип-тюнинг 1">
+                <h2>Чип‑тюнинг Stage 1</h2>
+                <p>Базовая прошивка, +10–15% мощности.</p>
+                <p class="price">8 000 ₽</p>
+                <button class="add-btn">Добавить в проект</button>
+            </article>
+
+            <article class="part-card" data-name="Чип‑тюнинг Stage 2" data-price="14000" data-type="chip">
+                <img src="https://avatars.mds.yandex.net/i?id=e9a62f75b08328fc796111bbe18a1bf7_l-3589653-images-thumbs&n=13" alt="Чип-тюнинг 2">
+                <h2>Чип‑тюнинг Stage 2</h2>
+                <p>Для доработанного мотора и требовательных водителей.</p>
+                <p class="price">14 000 ₽</p>
+                <button class="add-btn">Добавить в проект</button>
+            </article>
+
+            <article class="part-card" data-name="Спорт выхлоп" data-price="12000" data-type="exhaust">
+                <img src="https://20.img.avito.st/image/1/1.2qtu4La5dkJYSbRHVuec16VDcEjaw36A30N0RtJJfEA.E3sOw7wTXUzNZeNt5WKUPng5rH0fAoSvoXZvoQYgwGo" alt="Спорт выхлоп">
+                <h2>Спорт выхлоп</h2>
+                <p>Свободный выхлоп и насыщенный звук.</p>
+                <p class="price">12 000 ₽</p>
+                <button class="add-btn">Добавить в проект</button>
+            </article>
+
+            <article class="part-card" data-name="Турбокит Lite" data-price="45000" data-type="turbo">
+                <img src="https://giport.ru/wp-content/uploads/2025/07/oshibki-pri-ustanovke-turbo-komplekta.webp" alt="Турбина">
+                <h2>Турбокит Lite</h2>
+                <p>Базовый комплект турбонаддува для Priora.</p>
+                <p class="price">45 000 ₽</p>
+                <button class="add-btn">Добавить в проект</button>
+            </article>
+
+            <article class="part-card" data-name="Холодный впуск" data-price="9000" data-type="intake">
+                <img src="https://static.baza.farpost.ru/v/1734503860716_bulletin" alt="Впуск">
+                <h2>Холодный впуск</h2>
+                <p>Стабильная подача холодного воздуха.</p>
+                <p class="price">9 000 ₽</p>
+                <button class="add-btn">Добавить в проект</button>
+            </article>
+
+            <article class="part-card" data-name="Радиатор Sport" data-price="11000" data-type="cooling">
+                <img src="https://avatars.mds.yandex.net/i?id=46a2d3b5b5fd738a456012ff02849a00_l-5302841-images-thumbs&n=13" alt="Радиатор">
+                <h2>Радиатор Sport</h2>
+                <p>Улучшенное охлаждение под нагрузкой.</p>
+                <p class="price">11 000 ₽</p>
+                <button class="add-btn">Добавить в проект</button>
+            </article>
+        </div>
+    </section>
+
+    <!-- Внешний тюнинг -->
+    <section id="exterior" class="section" data-category="exterior">
+        <h1>Внешний тюнинг</h1>
+        <div class="filters">
+            <select class="filter-category">
+                <option value="all">Все категории</option>
+                <option value="bodykit">Обвесы</option>
+                <option value="wheels">Колёса</option>
+                <option value="lights">Оптика</option>
+                <option value="other">Прочее</option>
+            </select>
+            <select class="filter-sort">
+                <option value="default">Без сортировки</option>
+                <option value="asc">Цена: по возрастанию</option>
+                <option value="desc">Цена: по убыванию</option>
+            </select>
+        </div>
+        <div class="card-grid catalog-grid">
+            <article class="part-card" data-name="Обвес Street" data-price="25000" data-type="bodykit">
+                <img src="https://avatars.mds.yandex.net/i?id=d3230b4334fc613ca99fb0ec5e30c843_l-5277319-images-thumbs&n=13" alt="Обвес">
+                <h2>Обвес Street</h2>
+                <p>Агрессивный внешний вид и лучшая аэродинамика.</p>
+                <p class="price">25 000 ₽</p>
+                <button class="add-btn">Добавить в проект</button>
+            </article>
+
+            <article class="part-card" data-name="Кузовной обвес Track" data-price="34000" data-type="bodykit">
+                <img src="https://autotc.ru/product_img/vaz/2172/aerokit/zad-bamper/lex.jpg" alt="Обвес Track">
+                <h2>Обвес Track</h2>
+                <p>Для трек‑дней и максимально заниженного вида.</p>
+                <p class="price">34 000 ₽</p>
+                <button class="add-btn">Добавить в проект</button>
+            </article>
+
+            <article class="part-card" data-name="Литые диски 16”" data-price="18000" data-type="wheels">
+                <img src="https://png.pngtree.com/png-vector/20240819/ourmid/pngtree-alloy-wheels-alloy-png-image_13249174.png" alt="Диски 16">
+                <h2>Литые диски 16”</h2>
+                <p>Лёгкий вес и универсальный стиль.</p>
+                <p class="price">18 000 ₽</p>
+                <button class="add-btn">Добавить в проект</button>
+            </article>
+
+            <article class="part-card" data-name="Кованые диски 17”" data-price="32000" data-type="wheels">
+                <img src="https://static.tildacdn.com/tild3530-3263-4335-a536-646134356364/2022-08-02_130206.JPG" alt="Ковка 17">
+                <h2>Кованые диски 17”</h2>
+                <p>Максимум жёсткости и минимальный вес.</p>
+                <p class="price">32 000 ₽</p>
+                <button class="add-btn">Добавить в проект</button>
+            </article>
+
+            <article class="part-card" data-name="LED фары" data-price="14000" data-type="lights">
+                <img src="https://avatars.mds.yandex.net/get-mpic/4937511/2a0000019386c5d11eb02b724b1e3f8ff0bc/orig" alt="LED фары">
+                <h2>LED фары</h2>
+                <p>Яркий свет и современная оптика.</p>
+                <p class="price">14 000 ₽</p>
+                <button class="add-btn">Добавить в проект</button>
+            </article>
+
+            <article class="part-card" data-name="Спойлер GT" data-price="9000" data-type="other">
+                <img src="https://avatars.mds.yandex.net/i?id=ac17b5bb30d856d657a26ac0085922ed_l-5439472-images-thumbs&n=13" alt="Спойлер">
+                <h2>Спойлер GT</h2>
+                <p>Дополнительный прижим и стиль спорткара.</p>
+                <p class="price">9 000 ₽</p>
+                <button class="add-btn">Добавить в проект</button>
+            </article>
+
+            <article class="part-card" data-name="Тонировка премиум" data-price="6000" data-type="other">
+                <img src="https://avatars.mds.yandex.net/get-mpic/13905642/2a00000195185a21113f01073b5457ddaa03/orig" alt="Тонировка">
+                <h2>Тонировка премиум</h2>
+                <p>Защита от солнца и приватность.</p>
+                <p class="price">6 000 ₽</p>
+                <button class="add-btn">Добавить в проект</button>
+            </article>
+        </div>
+    </section>
+
+    <!-- Салон -->
+    <section id="interior" class="section" data-category="interior">
+        <h1>Внутренний тюнинг</h1>
+        <div class="filters">
+            <select class="filter-category">
+                <option value="all">Все категории</option>
+                <option value="seats">Сиденья</option>
+                <option value="wheel">Руль</option>
+                <option value="lighting">Подсветка</option>
+                <option value="trim">Отделка</option>
+            </select>
+            <select class="filter-sort">
+                <option value="default">Без сортировки</option>
+                <option value="asc">Цена: по возрастанию</option>
+                <option value="desc">Цена: по убыванию</option>
+            </select>
+        </div>
+        <div class="card-grid catalog-grid">
+            <article class="part-card" data-name="Сиденья Sport" data-price="20000" data-type="seats">
+                <img src="https://m.media-amazon.com/images/I/71BxdhuR16L._AC_UL800_QL65_.jpg" alt="Сиденья">
+                <h2>Сиденья Sport</h2>
+                <p>Усиленная боковая поддержка и комфорт.</p>
+                <p class="price">20 000 ₽</p>
+                <button class="add-btn">Добавить в проект</button>
+            </article>
+
+            <article class="part-card" data-name="Сиденья Braum" data-price="28000" data-type="seats">
+                <img src="https://i.pinimg.com/736x/1a/b7/50/1ab750003e293da7e9a90ca67b12c8d5.jpg" alt="Браумы">
+                <h2>Сиденья Braum</h2>
+                <p>Максимальная фиксация для трека.</p>
+                <p class="price">28 000 ₽</p>
+                <button class="add-btn">Добавить в проект</button>
+            </article>
+
+            <article class="part-card" data-name="Мультируль" data-price="9000" data-type="wheel">
+                <img src="https://a.d-cd.net/5XNRcxxq_9PsLZ69LGFAcBlEBjk-960.jpg" alt="Руль">
+                <h2>Мультируль</h2>
+                <p>Управление мультимедиа и бортовым ПК.</p>
+                <p class="price">9 000 ₽</p>
+                <button class="add-btn">Добавить в проект</button>
+            </article>
+
+            <article class="part-card" data-name="Подсветка салона RGB" data-price="5000" data-type="lighting">
+                <img src="https://a.d-cd.net/hkAAAgOfMOA-1920.jpg" alt="Подсветка">
+                <h2>Подсветка салона RGB</h2>
+                <p>Выбор цвета и сценариев свечения.</p>
+                <p class="price">5 000 ₽</p>
+                <button class="add-btn">Добавить в проект</button>
+            </article>
+
+            <article class="part-card" data-name="Панель приборов Digital" data-price="15000" data-type="trim">
+                <img src="https://a.d-cd.net/3226d72s-960.jpg" alt="Панель Digital">
+                <h2>Панель Digital</h2>
+                <p>Полностью цифровая приборка.</p>
+                <p class="price">15 000 ₽</p>
+                <button class="add-btn">Добавить в проект</button>
+            </article>
+
+            <article class="part-card" data-name="Карта дверей Premium" data-price="8000" data-type="trim">
+                <img src="https://static.tildacdn.com/tild6566-6366-4337-b836-303764313166/090_2_of_8.jpg" alt="Карта дверей">
+                <h2>Карта дверей Premium</h2>
+                <p>Кожа/алькантара, улучшенная шумоизоляция.</p>
+                <p class="price">8 000 ₽</p>
+                <button class="add-btn">Добавить в проект</button>
+            </article>
+        </div>
+    </section>
+
+    <!-- Подвеска -->
+    <section id="suspension" class="section" data-category="suspension">
+        <h1>Подвеска</h1>
+        <div class="filters">
+            <select class="filter-category">
+                <option value="all">Все категории</option>
+                <option value="springs">Пружины</option>
+                <option value="coilovers">Койловеры</option>
+                <option value="stabilizer">Стабилизаторы</option>
+            </select>
+            <select class="filter-sort">
+                <option value="default">Без сортировки</option>
+                <option value="asc">Цена: по возрастанию</option>
+                <option value="desc">Цена: по убыванию</option>
+            </select>
+        </div>
+        <div class="card-grid catalog-grid">
+            <article class="part-card" data-name="Пружины -40 мм" data-price="12000" data-type="springs">
+                <img src="https://ir.ozone.ru/s3/multimedia-1-y/c600/7102417210.jpg" alt="Пружины">
+                <h2>Пружины -40 мм</h2>
+                <p>Улучшенная управляемость и заниженный вид.</p>
+                <p class="price">12 000 ₽</p>
+                <button class="add-btn">Добавить в проект</button>
+            </article>
+
+            <article class="part-card" data-name="Койловеры регулируемые" data-price="38000" data-type="coilovers">
+                <img src="https://cdn.shopify.com/s/files/1/0602/3381/0134/files/how-to-set-coilover-preload.jpg?v=1660147902" alt="Койловеры">
+                <h2>Койловеры регулируемые</h2>
+                <p>Регулировка клиренса и жёсткости.</p>
+                <p class="price">38 000 ₽</p>
+                <button class="add-btn">Добавить в проект</button>
+            </article>
+
+            <article class="part-card" data-name="Стабилизатор Sport" data-price="9000" data-type="stabilizer">
+                <img src="https://tuningstock.ru/image/cache/catalog/15721/dsc00004-900x600.jpg" alt="Стабилизатор">
+                <h2>Стабилизатор Sport</h2>
+                <p>Меньше кренов, больше контроля.</p>
+                <p class="price">9 000 ₽</p>
+                <button class="add-btn">Добавить в проект</button>
+            </article>
+        </div>
+    </section>
+
+    <!-- Электроника -->
+    <section id="electronics" class="section" data-category="electronics">
+        <h1>Электроника и мультимедиа</h1>
+        <div class="filters">
+            <select class="filter-category">
+                <option value="all">Все категории</option>
+                <option value="headunit">Мультимедиа</option>
+                <option value="audio">Аудио</option>
+                <option value="security">Безопасность</option>
+            </select>
+            <select class="filter-sort">
+                <option value="default">Без сортировки</option>
+                <option value="asc">Цена: по возрастанию</option>
+                <option value="desc">Цена: по убыванию</option>
+            </select>
+        </div>
+        <div class="card-grid catalog-grid">
+            <article class="part-card" data-name="Мультимедиа 2DIN" data-price="15000" data-type="headunit">
+                <img src="https://avatars.mds.yandex.net/get-mpic/4466970/2a00000191ad9c12d14a1eab63d0500615fb/orig" alt="Головное устройство">
+                <h2>Мультимедиа 2DIN</h2>
+                <p>Навигация, Bluetooth, Android Auto.</p>
+                <p class="price">15 000 ₽</p>
+                <button class="add-btn">Добавить в проект</button>
+            </article>
+
+            <article class="part-card" data-name="Сабвуфер 12”" data-price="11000" data-type="audio">
+                <img src="https://avatars.mds.yandex.net/get-marketpic/6021055/pic801b0d3e263bd1f312e6b85955627329/orig" alt="Сабвуфер">
+                <h2>Сабвуфер 12”</h2>
+                <p>Плотный бас и чистый звук.</p>
+                <p class="price">11 000 ₽</p>
+                <button class="add-btn">Добавить в проект</button>
+            </article>
+
+            <article class="part-card" data-name="Сигнализация с автозапуском" data-price="13000" data-type="security">
+                <img src="https://avatars.mds.yandex.net/i?id=d13fa25773ae24dfc601eb3a0fba8b8b_l-4079333-images-thumbs&n=13" alt="Сигнализация">
+                <h2>Сигнализация с автозапуском</h2>
+                <p>Защита и удобный запуск зимой.</p>
+                <p class="price">13 000 ₽</p>
+                <button class="add-btn">Добавить в проект</button>
+            </article>
+        </div>
+    </section>
+
+    <!-- Мои проекты -->
+    <section id="projects" class="section">
+        <h1>Мои проекты</h1>
+        <div class="projects-layout">
+            <div class="projects-list">
+                <h2>Текущий проект</h2>
+                <ul id="project-items"></ul>
+                <button id="clear-project">Очистить проект</button>
+            </div>
+            <div class="calculator">
+                <h2>Калькулятор стоимости</h2>
+                <p>Стоимость деталей: <span id="parts-sum">0</span> ₽</p>
+                <label>
+                    Стоимость работ (₽):
+                    <input type="number" id="labor-input" value="5000" min="0">
+                </label>
+                <p><strong>Итого: <span id="total-sum">0</span> ₽</strong></p>
+                <button id="export-estimate">Экспортировать смету</button>
+                <p class="hint">Сейчас экспорт показывает сообщение. Можно добавить PDF / email позже.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Профиль -->
+    <section id="profile" class="section">
+        <h1>Профиль пользователя</h1>
+        <div class="profile-card">
+            <div class="avatar" id="avatar-letter">И</div>
+            <div>
+                <p><strong>Имя:</strong> <span id="profile-name">Иван</span></p>
+                <p><strong>Email:</strong> <span id="profile-email">ivan@example.com</span></p>
+                <label>
+                    Уведомления:
+                    <select>
+                        <option>Все</option>
+                        <option>Только акции</option>
+                        <option>Выключены</option>
+                    </select>
+                </label>
+                <button class="logout-btn" id="logout-btn">Выйти из аккаунта</button>
+            </div>
+        </div>
+    </section>
+</main>
+
+<footer class="footer">
+    <p>Priora Tuning · 2025</p>
+</footer>
+
+<script src="script.js"></script>
+</body>
+</html>
