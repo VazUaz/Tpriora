@@ -13,8 +13,8 @@
         <div class="auth-card" id="login-card">
             <h1>Вход</h1>
             <div class="saved-users" id="saved-users">
-                <h3>Сохраненные профили:</h3>
-                <div id="user-list"></div>
+                <h3><i class="fas fa-users"></i> Сохраненные профили:</h3>
+                <div id="user-list" class="user-list"></div>
             </div>
             <form id="login-form">
                 <label>Email</label>
@@ -25,7 +25,7 @@
                     <input type="checkbox" id="remember-me" checked>
                     <label for="remember-me">Запомнить меня</label>
                 </div>
-                <button type="submit" class="primary-btn">Войти</button>
+                <button type="submit" class="primary-btn"><i class="fas fa-sign-in-alt"></i> Войти</button>
             </form>
             <p class="auth-switch">Нет аккаунта? <button type="button" id="go-register" class="link-btn">Регистрация</button></p>
         </div>
@@ -36,13 +36,13 @@
                 <input type="text" id="reg-name" required>
                 <label>Email</label>
                 <input type="email" id="reg-email" required>
-                <label>Пароль</label>
+                <label>Пароль (минимум 4 символа)</label>
                 <input type="password" id="reg-password" minlength="4" required>
                 <div class="remember-me">
                     <input type="checkbox" id="remember-reg" checked>
                     <label for="remember-reg">Запомнить меня</label>
                 </div>
-                <button type="submit" class="primary-btn">Зарегистрироваться</button>
+                <button type="submit" class="primary-btn"><i class="fas fa-user-plus"></i> Зарегистрироваться</button>
             </form>
             <p class="auth-switch">Уже есть аккаунт? <button type="button" id="go-login" class="link-btn">Войти</button></p>
         </div>
@@ -52,15 +52,15 @@
     <header class="top-bar">
         <div class="logo">PRIORA<span>LAB</span></div>
         <nav class="nav">
-            <button class="nav-btn" data-section="home">Главная</button>
-            <button class="nav-btn" data-section="dashboard">Каталог</button>
-            <button class="nav-btn" data-section="projects">Проекты</button>
-            <button class="nav-btn" data-section="support">Поддержка</button>
-            <button class="nav-btn" data-section="profile">Профиль</button>
+            <button class="nav-btn" data-section="home"><i class="fas fa-home"></i> Главная</button>
+            <button class="nav-btn" data-section="dashboard"><i class="fas fa-cogs"></i> Каталог</button>
+            <button class="nav-btn" data-section="projects"><i class="fas fa-project-diagram"></i> Проекты</button>
+            <button class="nav-btn" data-section="support"><i class="fas fa-headset"></i> Поддержка</button>
+            <button class="nav-btn" data-section="profile"><i class="fas fa-user"></i> Профиль</button>
         </nav>
         <div class="nav-user">
-            <span id="user-name-title"></span>
-            <button id="quick-logout" class="quick-logout" title="Выйти"><i class="fas fa-sign-out-alt"></i></button>
+            <span id="user-name-title">Гость</span>
+            <button id="quick-logout" class="quick-logout hidden" title="Выйти"><i class="fas fa-sign-out-alt"></i></button>
         </div>
     </header>
 
@@ -69,33 +69,45 @@
     <main>
         <!-- 1. Home -->
         <section id="home" class="section active">
-            <h1>Priora Tuning Hub</h1>
+            <h1><i class="fas fa-tachometer-alt"></i> Priora Tuning Hub</h1>
             <div class="home-layout">
                 <!-- News -->
                 <article class="home-card">
-                    <h2>Новости PriorLab</h2>
+                    <h2><i class="fas fa-newspaper"></i> Новости PriorLab</h2>
                     <ul class="news-list" id="news-list">
-                        <li><h3>Stage 1 готов к тестам</h3><p>20% прирост мощности. Доступен предзаказ.</p><span class="news-date">28.12.2025</span></li>
-                        <li><h3>500+ установок!</h3><p>Благодарим за доверие. 1-й этап - лидер продаж.</p><span class="news-date">25.12.2025</span></li>
-                        <li><h3>Новая линейка выхлопов</h3><p>Прямоточные системы с сертификацией шума.</p><span class="news-date">22.12.2025</span></li>
+                        <li>
+                            <h3>Stage 1 готов к тестам</h3>
+                            <p>20% прирост мощности. Доступен предзаказ.</p>
+                            <span class="news-date"><i class="fas fa-calendar"></i> 28.12.2025</span>
+                        </li>
+                        <li>
+                            <h3>500+ установок!</h3>
+                            <p>Благодарим за доверие. 1-й этап - лидер продаж.</p>
+                            <span class="news-date"><i class="fas fa-calendar"></i> 25.12.2025</span>
+                        </li>
+                        <li>
+                            <h3>Новая линейка выхлопов</h3>
+                            <p>Прямоточные системы с сертификацией шума.</p>
+                            <span class="news-date"><i class="fas fa-calendar"></i> 22.12.2025</span>
+                        </li>
                     </ul>
                 </article>
                 <!-- Ads -->
                 <article class="home-card">
-                    <h2>Горячие предложения</h2>
+                    <h2><i class="fas fa-fire"></i> Горячие предложения</h2>
                     <div class="ad-grid">
                         <div class="ad-item">
-                            <h3>Stage 1</h3>
+                            <h3><i class="fas fa-bolt"></i> Stage 1</h3>
                             <p>Базовый тюнинг, +20 л.с., 1015 кг.</p>
                             <span class="badge">8 000 ₽</span>
                         </div>
                         <div class="ad-item">
-                            <h3>Track</h3>
+                            <h3><i class="fas fa-car-side"></i> Track</h3>
                             <p>Полная подвеска, -40 мм, регулируемая.</p>
                             <span class="badge">34 000 ₽</span>
                         </div>
                         <div class="ad-item">
-                            <h3>SQLite SQ</h3>
+                            <h3><i class="fas fa-volume-up"></i> SQLite SQ</h3>
                             <p>Аудио премиум-класса.</p>
                             <span class="badge">15 000 ₽</span>
                         </div>
@@ -103,19 +115,28 @@
                 </article>
                 <!-- Partners -->
                 <aside class="home-card">
-                    <h2>Партнеры</h2>
+                    <h2><i class="fas fa-handshake"></i> Партнеры</h2>
                     <div class="partners">
                         <div class="partner">
                             <span class="partner-logo">SR</span>
-                            <div><h3>StreetRacer Shop</h3><p>Запчасти, шины, диски.</p></div>
+                            <div>
+                                <h3>StreetRacer Shop</h3>
+                                <p>Запчасти, шины, диски.</p>
+                            </div>
                         </div>
                         <div class="partner">
                             <span class="partner-logo">MD</span>
-                            <div><h3>MadDetailing</h3><p>Оклейка, антикор, полировка.</p></div>
+                            <div>
+                                <h3>MadDetailing</h3>
+                                <p>Оклейка, антикор, полировка.</p>
+                            </div>
                         </div>
                         <div class="partner">
                             <span class="partner-logo">TG</span>
-                            <div><h3>TurboGarage</h3><p>Турбины, интеркулеры.</p></div>
+                            <div>
+                                <h3>TurboGarage</h3>
+                                <p>Турбины, интеркулеры.</p>
+                            </div>
                         </div>
                     </div>
                 </aside>
@@ -124,28 +145,33 @@
 
         <!-- 2. Dashboard/Catalog -->
         <section id="dashboard" class="section" data-category="catalog">
-            <h1>Каталог запчастей</h1>
+            <h1><i class="fas fa-cogs"></i> Каталог запчастей</h1>
             <div class="dashboard-grid">
                 <div class="car-card">
-                    <h2>Priora 3D</h2>
+                    <h2><i class="fas fa-car"></i> Priora 3D</h2>
                     <div class="car-3d-wrapper">
-                        <iframe src="https://sketchfab.com/models/cf89e11f6d7b46aaa3840af2422a7906/embed" frameborder="0" loading="lazy"></iframe>
+                        <iframe src="https://sketchfab.com/models/cf89e11f6d7b46aaa3840af2422a7906/embed" 
+                                frameborder="0" 
+                                allowfullscreen
+                                mozallowfullscreen="true"
+                                webkitallowfullscreen="true">
+                        </iframe>
                     </div>
                     <p>Stage 1, Street, 17", SQ, Sport.</p>
                 </div>
                 <div class="quick-actions">
-                    <h2>Быстрые действия</h2>
+                    <h2><i class="fas fa-bolt"></i> Быстрые действия</h2>
                     <div class="quick-buttons">
                         <button data-section="projects"><i class="fas fa-project-diagram"></i> Мои проекты</button>
                         <button data-section="support"><i class="fas fa-headset"></i> Поддержка</button>
                         <button data-section="home"><i class="fas fa-home"></i> Главная</button>
                     </div>
                     <div class="notifications">
-                        <h3>Уведомления</h3>
+                        <h3><i class="fas fa-bell"></i> Уведомления</h3>
                         <ul>
-                            <li>1 000 ₽ скидка на Stage 1!</li>
-                            <li>Новые отзывы добавлены</li>
-                            <li>Завтра тех. обслуживание с 10:00 до 12:00</li>
+                            <li><i class="fas fa-tag"></i> 1 000 ₽ скидка на Stage 1!</li>
+                            <li><i class="fas fa-comment"></i> Новые отзывы добавлены</li>
+                            <li><i class="fas fa-tools"></i> Завтра тех. обслуживание с 10:00 до 12:00</li>
                         </ul>
                     </div>
                 </div>
@@ -169,80 +195,113 @@
             </div>
 
             <div class="card-grid catalog-grid">
+                <!-- Карточки деталей -->
                 <article class="part-card" data-type="engine" data-price="8000" data-name="Stage 1" data-desc="Базовый тюнинг, +20 л.с., 1015 кг." data-power="+20 л.с." data-torque="+15 Н·м" data-weight="1015 кг" data-fuel="АИ-95">
-                    <img src="https://avatars.mds.yandex.net/i?id=e9a62f75b08328fc796111bbe18a1bf7_l-3589653-images-thumbs&n=13" alt="Stage 1">
+                    <div class="part-image">
+                        <img src="https://avatars.mds.yandex.net/i?id=e9a62f75b08328fc796111bbe18a1bf7_l-3589653-images-thumbs&n=13" alt="Stage 1" loading="lazy">
+                    </div>
                     <h2>Stage 1</h2>
-                    <p>Базовый тюнинг, +20 л.с., 1015 кг.</p>
+                    <p class="part-desc">Базовый тюнинг, +20 л.с., 1015 кг.</p>
                     <p class="price">8 000 ₽</p>
-                    <button class="add-btn"><i class="fas fa-plus"></i> Добавить</button>
-                    <button class="compare-btn" data-name="Stage 1" data-price="8000" data-type="engine">Сравнить</button>
+                    <div class="part-actions">
+                        <button class="add-btn"><i class="fas fa-plus"></i> Добавить</button>
+                        <button class="compare-btn" data-name="Stage 1" data-price="8000" data-type="engine"><i class="fas fa-balance-scale"></i> Сравнить</button>
+                    </div>
                 </article>
                 <article class="part-card" data-type="engine" data-price="14000" data-name="Stage 2" data-desc="Расширенный тюнинг, +35 л.с." data-power="+35 л.с." data-torque="+25 Н·м" data-weight="1020 кг" data-fuel="АИ-95">
-                    <img src="https://avatars.mds.yandex.net/i?id=e9a62f75b08328fc796111bbe18a1bf7_l-3589653-images-thumbs&n=13" alt="Stage 2">
+                    <div class="part-image">
+                        <img src="https://avatars.mds.yandex.net/i?id=e9a62f75b08328fc796111bbe18a1bf7_l-3589653-images-thumbs&n=13" alt="Stage 2" loading="lazy">
+                    </div>
                     <h2>Stage 2</h2>
-                    <p>Расширенный тюнинг, +35 л.с.</p>
+                    <p class="part-desc">Расширенный тюнинг, +35 л.с.</p>
                     <p class="price">14 000 ₽</p>
-                    <button class="add-btn"><i class="fas fa-plus"></i> Добавить</button>
-                    <button class="compare-btn" data-name="Stage 2" data-price="14000" data-type="engine">Сравнить</button>
+                    <div class="part-actions">
+                        <button class="add-btn"><i class="fas fa-plus"></i> Добавить</button>
+                        <button class="compare-btn" data-name="Stage 2" data-price="14000" data-type="engine"><i class="fas fa-balance-scale"></i> Сравнить</button>
+                    </div>
                 </article>
                 <article class="part-card" data-type="exhaust" data-price="12000" data-name="Exhaust" data-desc="Спортивная выхлопная система." data-power="+5 л.с." data-sound="Громкий" data-weight="8 кг" data-material="Нержавеющая сталь">
-                    <img src="https://20.img.avito.st/image/1/1.2qtu4La5dkJYSbRHVuec16VDcEjaw36A30N0RtJJfEA.E3sOw7wTXUzNZeNt5WKUPng5rH0fAoSvoXZvoQYgwGo" alt="Exhaust">
+                    <div class="part-image">
+                        <img src="https://20.img.avito.st/image/1/1.2qtu4La5dkJYSbRHVuec16VDcEjaw36A30N0RtJJfEA.E3sOw7wTXUzNZeNt5WKUPng5rH0fAoSvoXZvoQYgwGo" alt="Exhaust" loading="lazy">
+                    </div>
                     <h2>Выхлоп</h2>
-                    <p>Спортивная выхлопная система.</p>
+                    <p class="part-desc">Спортивная выхлопная система.</p>
                     <p class="price">12 000 ₽</p>
-                    <button class="add-btn"><i class="fas fa-plus"></i> Добавить</button>
-                    <button class="compare-btn" data-name="Exhaust" data-price="12000" data-type="exhaust">Сравнить</button>
+                    <div class="part-actions">
+                        <button class="add-btn"><i class="fas fa-plus"></i> Добавить</button>
+                        <button class="compare-btn" data-name="Exhaust" data-price="12000" data-type="exhaust"><i class="fas fa-balance-scale"></i> Сравнить</button>
+                    </div>
                 </article>
                 <article class="part-card" data-type="engine" data-price="45000" data-name="Priora Turbo" data-desc="Полный турбо-кит Priora." data-power="+72 л.с." data-turbo="0.6 бар" data-fuel="АИ-98" data-install="Сложная">
-                    <img src="https://giport.ru/wp-content/uploads/2025/07/oshibki-pri-ustanovke-turbo-komplekta.webp" alt="Turbo">
+                    <div class="part-image">
+                        <img src="https://giport.ru/wp-content/uploads/2025/07/oshibki-pri-ustanovke-turbo-komplekta.webp" alt="Turbo" loading="lazy">
+                    </div>
                     <h2>Priora Turbo</h2>
-                    <p>Полный турбо-кит Priora.</p>
+                    <p class="part-desc">Полный турбо-кит Priora.</p>
                     <p class="price">45 000 ₽</p>
-                    <button class="add-btn"><i class="fas fa-plus"></i> Добавить</button>
-                    <button class="compare-btn" data-name="Priora Turbo" data-price="45000" data-type="engine">Сравнить</button>
+                    <div class="part-actions">
+                        <button class="add-btn"><i class="fas fa-plus"></i> Добавить</button>
+                        <button class="compare-btn" data-name="Priora Turbo" data-price="45000" data-type="engine"><i class="fas fa-balance-scale"></i> Сравнить</button>
+                    </div>
                 </article>
                 <article class="part-card" data-type="suspension" data-price="34000" data-name="Track" data-desc="Полная регулируемая подвеска." data-lowering="40 мм" data-adjust="Да" data-type-susp="Койловеры" data-comfort="Спорт">
-                    <img src="https://cdn.shopify.com/s/files/1/0602/3381/0134/files/how-to-set-coilover-preload.jpg?v=1660147902" alt="Coilovers">
+                    <div class="part-image">
+                        <img src="https://cdn.shopify.com/s/files/1/0602/3381/0134/files/how-to-set-coilover-preload.jpg?v=1660147902" alt="Coilovers" loading="lazy">
+                    </div>
                     <h2>Track</h2>
-                    <p>Полная регулируемая подвеска.</p>
+                    <p class="part-desc">Полная регулируемая подвеска.</p>
                     <p class="price">34 000 ₽</p>
-                    <button class="add-btn"><i class="fas fa-plus"></i> Добавить</button>
-                    <button class="compare-btn" data-name="Track" data-price="34000" data-type="suspension">Сравнить</button>
+                    <div class="part-actions">
+                        <button class="add-btn"><i class="fas fa-plus"></i> Добавить</button>
+                        <button class="compare-btn" data-name="Track" data-price="34000" data-type="suspension"><i class="fas fa-balance-scale"></i> Сравнить</button>
+                    </div>
                 </article>
                 <article class="part-card" data-type="exterior" data-price="25000" data-name="Street" data-desc="Обвес Street стиль." data-material="ABS пластик" data-color="Под покраску" data-parts="5 элементов" data-weight="12 кг">
-                    <img src="https://avatars.mds.yandex.net/i?id=d3230b4334fc613ca99fb0ec5e30c843_l-5277319-images-thumbs&n=13" alt="Bodykit">
+                    <div class="part-image">
+                        <img src="https://avatars.mds.yandex.net/i?id=d3230b4334fc613ca99fb0ec5e30c843_l-5277319-images-thumbs&n=13" alt="Bodykit" loading="lazy">
+                    </div>
                     <h2>Street</h2>
-                    <p>Обвес Street стиль.</p>
+                    <p class="part-desc">Обвес Street стиль.</p>
                     <p class="price">25 000 ₽</p>
-                    <button class="add-btn"><i class="fas fa-plus"></i> Добавить</button>
-                    <button class="compare-btn" data-name="Street" data-price="25000" data-type="exterior">Сравнить</button>
+                    <div class="part-actions">
+                        <button class="add-btn"><i class="fas fa-plus"></i> Добавить</button>
+                        <button class="compare-btn" data-name="Street" data-price="25000" data-type="exterior"><i class="fas fa-balance-scale"></i> Сравнить</button>
+                    </div>
                 </article>
                 <article class="part-card" data-type="interior" data-price="20000" data-name="Comfort" data-desc="Спортивные сиденья Comfort." data-material="Алькантара" data-heating="Да" data-weight="15 кг" data-color="Черный">
-                    <img src="https://m.media-amazon.com/images/I/71BxdhuR16L._AC_UL800_QL65_.jpg" alt="Seats">
+                    <div class="part-image">
+                        <img src="https://m.media-amazon.com/images/I/71BxdhuR16L._AC_UL800_QL65_.jpg" alt="Seats" loading="lazy">
+                    </div>
                     <h2>Comfort</h2>
-                    <p>Спортивные сиденья Comfort.</p>
+                    <p class="part-desc">Спортивные сиденья Comfort.</p>
                     <p class="price">20 000 ₽</p>
-                    <button class="add-btn"><i class="fas fa-plus"></i> Добавить</button>
-                    <button class="compare-btn" data-name="Comfort" data-price="20000" data-type="interior">Сравнить</button>
+                    <div class="part-actions">
+                        <button class="add-btn"><i class="fas fa-plus"></i> Добавить</button>
+                        <button class="compare-btn" data-name="Comfort" data-price="20000" data-type="interior"><i class="fas fa-balance-scale"></i> Сравнить</button>
+                    </div>
                 </article>
                 <article class="part-card" data-type="audio" data-price="11000" data-name="SQLite" data-desc="Аудиосистема SQLite." data-power="800 Вт" data-speakers="6" data-subwoofer="1x12\"" data-control="Сенсорный">
-                    <img src="https://avatars.mds.yandex.net/get-mpic/4466970/2a00000191ad9c12d14a1eab63d0500615fb/orig" alt="Audio">
+                    <div class="part-image">
+                        <img src="https://avatars.mds.yandex.net/get-mpic/4466970/2a00000191ad9c12d14a1eab63d0500615fb/orig" alt="Audio" loading="lazy">
+                    </div>
                     <h2>SQLite</h2>
-                    <p>Аудиосистема SQLite.</p>
+                    <p class="part-desc">Аудиосистема SQLite.</p>
                     <p class="price">11 000 ₽</p>
-                    <button class="add-btn"><i class="fas fa-plus"></i> Добавить</button>
-                    <button class="compare-btn" data-name="SQLite" data-price="11000" data-type="audio">Сравнить</button>
+                    <div class="part-actions">
+                        <button class="add-btn"><i class="fas fa-plus"></i> Добавить</button>
+                        <button class="compare-btn" data-name="SQLite" data-price="11000" data-type="audio"><i class="fas fa-balance-scale"></i> Сравнить</button>
+                    </div>
                 </article>
             </div>
         </section>
 
         <!-- 3. Projects -->
         <section id="projects" class="section">
-            <h1>Мои проекты</h1>
+            <h1><i class="fas fa-project-diagram"></i> Мои проекты</h1>
             <div class="projects-layout">
                 <!-- Project List -->
                 <div class="projects-list">
-                    <h2>Список деталей</h2>
+                    <h2><i class="fas fa-list"></i> Список деталей</h2>
                     <div class="project-stats">
                         <p><i class="fas fa-cogs"></i> Деталей: <span id="parts-count">0</span></p>
                         <p><i class="fas fa-ruble-sign"></i> Запчасти: <span id="parts-sum">0</span> ₽</p>
@@ -251,6 +310,7 @@
                     <label class="labor-input">
                         <i class="fas fa-tools"></i> Работа:
                         <input type="number" id="labor-input" min="0" step="500" value="0">
+                        ₽
                     </label>
                     <div class="total-block">
                         <p><strong>Итого: <span id="total-sum">0</span> ₽</strong></p>
@@ -298,7 +358,7 @@
                         <h3><i class="fas fa-balance-scale"></i> Сравнение деталей</h3>
                         <div id="compare-container">
                             <div class="compare-items" id="compare-items">
-                                <p class="empty-compare">Выберите детали для сравнения из каталога</p>
+                                <p class="empty-compare"><i class="fas fa-balance-scale"></i> Выберите детали для сравнения из каталога</p>
                             </div>
                             <div id="compare-table-container" class="hidden">
                                 <table class="compare-table">
@@ -323,7 +383,7 @@
 
         <!-- 4. Support -->
         <section id="support" class="section">
-            <h1>Поддержка</h1>
+            <h1><i class="fas fa-headset"></i> Поддержка</h1>
             <div class="support-layout">
                 <!-- Support Form -->
                 <div class="support-card">
@@ -363,7 +423,7 @@
 
         <!-- 5. Profile (Enhanced) -->
         <section id="profile" class="section">
-            <h1>Профиль</h1>
+            <h1><i class="fas fa-user"></i> Профиль</h1>
             <div class="profile-container">
                 <!-- Profile Display -->
                 <div id="profile-display" class="profile-card">
@@ -493,11 +553,12 @@
             </div>
             <div class="footer-copy">
                 <p>© 2025 PriorLab. Все права защищены.</p>
-                <p class="footer-hint">Сайт создан для демонстрации возможностей тюнинга Priora</p>
+                <p class="footer-hint"><i class="fas fa-sync-alt"></i> Синхронизация между устройствами активна</p>
             </div>
         </div>
     </footer>
 
+    <script src="server.js"></script>
     <script src="script.js"></script>
 </body>
 </html>
