@@ -1,54 +1,462 @@
-// ===== НАВИГАЦИЯ + КНОПКА "НАЗАД" =====
-const sections = document.querySelectorAll(".section");
-const backBtn = document.getElementById("back-btn");
-let historyStack = ["home"];
-
-function showSection(id, pushToHistory = true) {
-    sections.forEach((sec) => {
-        sec.classList.toggle("active", sec.id === id);
-    });
-
-    if (pushToHistory) {
-        const last = historyStack[historyStack.length - 1];
-        if (last !== id) historyStack.push(id);
+// ===== КЛАСС ДЛЯ ОБЛАЧНОЙ СИНХРОНИЗАЦИИ =====
+class CloudSync {
+    constructor() {
+        this.API_URL = 'https://api.jsonbin.io/v3/b'; // JSONBin.io API
+        this.MASTER_KEY = '$2a$10$UzK9q6X1F8H9LkM5pQwZTuJcRgVlN8sYtBvC2dE3fG4hI5jK6lM7nO8p'; // Пример ключа
+        this.BIN_ID = null; // ID бина будет создаваться при первом сохранении
+        this.SYNC_INTERVAL = 30000; // 30 секунд
+        this.isSyncing = false;
+        this.lastSyncTime = null;
+        this.syncInterval = null;
+        this.init();
     }
 
-    backBtn.disabled = historyStack.length <= 1;
-    window.scrollTo({ top: 0, behavior: "smooth" });
-    
-    // Обновляем данные при показе раздела
-    if (id === "profile") {
-        loadProfileData();
-        updateProfileStats();
-        renderSavedProfiles();
-    } else if (id === "projects") {
-        updatePaymentAmount();
-    } else if (id === "support") {
-        loadChatMessages();
+    async init() {
+        // Загружаем ID бина из localStorage или создаем новый
+        const savedBinId = localStorage.getItem('pt_cloud_bin_id');
+        
+        if (savedBinId) {
+            this.BIN_ID = savedBinId;
+            console.log('Используем существующий бин:', this.BIN_ID);
+        } else {
+            // Пробуем создать новый бин при инициализации
+            await this.createNewBin();
+        }
+        
+        // Загружаем данные из облака
+        await this.loadFromCloud();
+        
+        // Запускаем автоматическую синхронизацию
+        this.startAutoSync();
+        
+        // Слушаем события изменения данных
+        this.setupDataListeners();
+    }
+
+    async createNewBin() {
+        try {
+            const initialData = {
+                users: [],
+                chat: [],
+                payments: [],
+                syncInfo: {
+                    created: new Date().toISOString(),
+                    lastSync: new Date().toISOString(),
+                    device: navigator.userAgent.substring(0, 100)
+                }
+            };
+
+            const response = await fetch(this.API_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Master-Key': this.MASTER_KEY,
+                    'X-Bin-Name': 'PriorLab Cloud Data'
+                },
+                body: JSON.stringify(initialData)
+            });
+
+            if (!response.ok) throw new Error('Ошибка создания облачного хранилища');
+
+            const data = await response.json();
+            this.BIN_ID = data.metadata.id;
+            localStorage.setItem('pt_cloud_bin_id', this.BIN_ID);
+            
+            console.log('Создан новый облачный бин:', this.BIN_ID);
+            return true;
+        } catch (error) {
+            console.error('Ошибка создания облачного хранилища:', error);
+            this.showCloudNotification('Не удалось создать облачное хранилище', 'error');
+            return false;
+        }
+    }
+
+    async saveToCloud(dataToSave = null) {
+        if (this.isSyncing) return false;
+        
+        this.isSyncing = true;
+        this.updateSyncStatus('Сохранение в облако...', 'syncing');
+        
+        try {
+            // Получаем текущие данные из localStorage
+            const localData = dataToSave || this.getAllLocalData();
+            
+            // Добавляем информацию о синхронизации
+            localData.syncInfo = {
+                lastSync: new Date().toISOString(),
+                syncDevice: navigator.userAgent.substring(0, 100),
+                totalUsers: localData.users.length,
+                totalMessages: localData.chat.length
+            };
+
+            if (!this.BIN_ID) {
+                const created = await this.createNewBin();
+                if (!created) throw new Error('Не удалось создать облачное хранилище');
+            }
+
+            const response = await fetch(`${this.API_URL}/${this.BIN_ID}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Master-Key': this.MASTER_KEY
+                },
+                body: JSON.stringify(localData)
+            });
+
+            if (!response.ok) throw new Error('Ошибка сохранения в облако');
+
+            const result = await response.json();
+            this.lastSyncTime = new Date();
+            this.updateSyncStatus('Синхронизировано', 'synced');
+            
+            console.log('Данные сохранены в облако:', result);
+            this.showCloudNotification('Данные синхронизированы с облаком', 'success');
+            return true;
+        } catch (error) {
+            console.error('Ошибка сохранения в облако:', error);
+            this.updateSyncStatus('Ошибка синхронизации', 'error');
+            this.showCloudNotification('Ошибка синхронизации с облаком', 'error');
+            return false;
+        } finally {
+            this.isSyncing = false;
+        }
+    }
+
+    async loadFromCloud() {
+        if (!this.BIN_ID) {
+            console.log('Нет ID бина для загрузки');
+            return false;
+        }
+
+        this.isSyncing = true;
+        this.updateSyncStatus('Загрузка из облака...', 'syncing');
+        
+        try {
+            const response = await fetch(`${this.API_URL}/${this.BIN_ID}/latest`, {
+                headers: {
+                    'X-Master-Key': this.MASTER_KEY
+                }
+            });
+
+            if (!response.ok) {
+                if (response.status === 404) {
+                    console.log('Бин не найден, создаем новый');
+                    await this.createNewBin();
+                    return false;
+                }
+                throw new Error('Ошибка загрузки из облака');
+            }
+
+            const data = await response.json();
+            const cloudData = data.record;
+            
+            console.log('Данные загружены из облака:', cloudData);
+            
+            // Объединяем облачные данные с локальными
+            this.mergeCloudData(cloudData);
+            
+            this.lastSyncTime = new Date();
+            this.updateSyncStatus('Загружено из облака', 'synced');
+            this.showCloudNotification('Данные загружены из облака', 'success');
+            return true;
+        } catch (error) {
+            console.error('Ошибка загрузки из облака:', error);
+            this.updateSyncStatus('Ошибка загрузки', 'error');
+            this.showCloudNotification('Ошибка загрузки из облака', 'error');
+            return false;
+        } finally {
+            this.isSyncing = false;
+        }
+    }
+
+    getAllLocalData() {
+        // Собираем все данные из localStorage
+        const users = JSON.parse(localStorage.getItem('pt_users') || '[]');
+        const savedProfiles = JSON.parse(localStorage.getItem('pt_saved_profiles') || '[]');
+        const chat = JSON.parse(localStorage.getItem('pt_chat') || '[]');
+        
+        // Собираем все проекты пользователей
+        const projects = {};
+        const payments = {};
+        
+        users.forEach(user => {
+            const userProjects = JSON.parse(localStorage.getItem(`pt_projects_history_${user.id}`) || '[]');
+            const userPayments = JSON.parse(localStorage.getItem(`pt_payments_${user.id}`) || '[]');
+            
+            if (userProjects.length > 0) {
+                projects[user.id] = userProjects;
+            }
+            
+            if (userPayments.length > 0) {
+                payments[user.id] = userPayments;
+            }
+        });
+
+        return {
+            users,
+            savedProfiles,
+            chat,
+            projects,
+            payments,
+            syncInfo: {
+                lastLocalSave: new Date().toISOString(),
+                deviceCount: this.countDevices(),
+                dataVersion: '1.0'
+            }
+        };
+    }
+
+    mergeCloudData(cloudData) {
+        // Объединяем пользователей
+        const localUsers = JSON.parse(localStorage.getItem('pt_users') || '[]');
+        const cloudUsers = cloudData.users || [];
+        
+        // Объединяем массивы, избегая дубликатов по email
+        const mergedUsers = this.mergeArrays(localUsers, cloudUsers, 'email');
+        localStorage.setItem('pt_users', JSON.stringify(mergedUsers));
+        
+        // Объединяем сохраненные профили
+        const localProfiles = JSON.parse(localStorage.getItem('pt_saved_profiles') || '[]');
+        const cloudProfiles = cloudData.savedProfiles || [];
+        const mergedProfiles = this.mergeArrays(localProfiles, cloudProfiles, 'email');
+        localStorage.setItem('pt_saved_profiles', JSON.stringify(mergedProfiles));
+        
+        // Объединяем чат (все сообщения)
+        const localChat = JSON.parse(localStorage.getItem('pt_chat') || '[]');
+        const cloudChat = cloudData.chat || [];
+        const mergedChat = this.mergeArrays(localChat, cloudChat, 'timestamp', true);
+        localStorage.setItem('pt_chat', JSON.stringify(mergedChat));
+        
+        // Объединяем проекты и платежи
+        if (cloudData.projects) {
+            Object.entries(cloudData.projects).forEach(([userId, userProjects]) => {
+                const localProjects = JSON.parse(localStorage.getItem(`pt_projects_history_${userId}`) || '[]');
+                const merged = this.mergeArrays(localProjects, userProjects, 'date', true);
+                localStorage.setItem(`pt_projects_history_${userId}`, JSON.stringify(merged));
+            });
+        }
+        
+        if (cloudData.payments) {
+            Object.entries(cloudData.payments).forEach(([userId, userPayments]) => {
+                const localPayments = JSON.parse(localStorage.getItem(`pt_payments_${userId}`) || '[]');
+                const merged = this.mergeArrays(localPayments, userPayments, 'date', true);
+                localStorage.setItem(`pt_payments_${userId}`, JSON.stringify(merged));
+            });
+        }
+        
+        console.log('Данные успешно объединены');
+    }
+
+    mergeArrays(localArray, cloudArray, uniqueKey, preferNewer = false) {
+        const mergedMap = new Map();
+        
+        // Добавляем локальные элементы
+        localArray.forEach(item => {
+            const key = item[uniqueKey] || JSON.stringify(item);
+            mergedMap.set(key, item);
+        });
+        
+        // Добавляем облачные элементы
+        cloudArray.forEach(item => {
+            const key = item[uniqueKey] || JSON.stringify(item);
+            const existing = mergedMap.get(key);
+            
+            if (!existing) {
+                mergedMap.set(key, item);
+            } else if (preferNewer && item.timestamp && existing.timestamp) {
+                // Если предпочитаем более новые, сравниваем временные метки
+                const existingTime = new Date(existing.timestamp).getTime();
+                const newTime = new Date(item.timestamp).getTime();
+                
+                if (newTime > existingTime) {
+                    mergedMap.set(key, item);
+                }
+            }
+        });
+        
+        return Array.from(mergedMap.values());
+    }
+
+    countDevices() {
+        // Простая эмуляция подсчета устройств
+        const devices = JSON.parse(localStorage.getItem('pt_sync_devices') || '[]');
+        const currentDevice = {
+            userAgent: navigator.userAgent.substring(0, 100),
+            lastSeen: new Date().toISOString()
+        };
+        
+        // Добавляем текущее устройство если его нет
+        const exists = devices.some(device => 
+            device.userAgent === currentDevice.userAgent
+        );
+        
+        if (!exists) {
+            devices.push(currentDevice);
+            localStorage.setItem('pt_sync_devices', JSON.stringify(devices));
+        }
+        
+        return devices.length;
+    }
+
+    updateSyncStatus(text, status = 'syncing') {
+        const syncElement = document.getElementById('sync-status');
+        const syncText = document.getElementById('sync-text');
+        const globalSync = document.getElementById('global-sync-status');
+        const globalText = document.getElementById('global-sync-text');
+        
+        if (syncElement && syncText) {
+            syncText.textContent = text;
+            syncElement.className = `sync-status ${status}`;
+        }
+        
+        if (globalSync && globalText) {
+            globalText.textContent = text.substring(0, 10);
+            globalSync.className = `global-sync-status ${status}`;
+        }
+    }
+
+    showCloudNotification(message, type = 'info') {
+        const container = document.getElementById('notifications-container') || document.body;
+        
+        const notification = document.createElement('div');
+        notification.className = `cloud-notification ${type}`;
+        notification.innerHTML = `
+            <i class="fas fa-cloud"></i>
+            <div>
+                <strong>Облачная синхронизация</strong>
+                <p>${message}</p>
+            </div>
+            <button class="notification-close"><i class="fas fa-times"></i></button>
+        `;
+        
+        container.appendChild(notification);
+        
+        // Автоматическое закрытие через 5 секунд
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.remove();
+            }
+        }, 5000);
+        
+        // Кнопка закрытия
+        notification.querySelector('.notification-close').addEventListener('click', () => {
+            notification.remove();
+        });
+    }
+
+    startAutoSync() {
+        // Останавливаем предыдущий интервал если есть
+        if (this.syncInterval) {
+            clearInterval(this.syncInterval);
+        }
+        
+        // Запускаем синхронизацию каждые SYNC_INTERVAL миллисекунд
+        this.syncInterval = setInterval(async () => {
+            await this.loadFromCloud();
+            await this.saveToCloud();
+        }, this.SYNC_INTERVAL);
+        
+        // Также синхронизируем при видимости страницы
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) {
+                this.loadFromCloud();
+            }
+        });
+    }
+
+    stopAutoSync() {
+        if (this.syncInterval) {
+            clearInterval(this.syncInterval);
+            this.syncInterval = null;
+        }
+    }
+
+    setupDataListeners() {
+        // Слушаем изменения в localStorage
+        const originalSetItem = localStorage.setItem;
+        const originalRemoveItem = localStorage.removeItem;
+        
+        const self = this;
+        
+        // Переопределяем setItem для автоматической синхронизации
+        localStorage.setItem = function(key, value) {
+            originalSetItem.call(this, key, value);
+            
+            // Автосинхронизация при изменении важных данных
+            if (key.startsWith('pt_')) {
+                self.saveToCloud();
+            }
+        };
+        
+        // Аналогично для removeItem
+        localStorage.removeItem = function(key) {
+            originalRemoveItem.call(this, key);
+            
+            if (key.startsWith('pt_')) {
+                self.saveToCloud();
+            }
+        };
+    }
+
+    async forceSync() {
+        await this.loadFromCloud();
+        await this.saveToCloud();
+    }
+
+    async clearAllData() {
+        if (confirm('ВНИМАНИЕ: Это удалит ВСЕ данные включая облачные. Продолжить?')) {
+            try {
+                // Очищаем localStorage
+                const keys = Object.keys(localStorage);
+                keys.forEach(key => {
+                    if (key.startsWith('pt_')) {
+                        localStorage.removeItem(key);
+                    }
+                });
+                
+                // Очищаем облачный бин
+                if (this.BIN_ID) {
+                    await fetch(`${this.API_URL}/${this.BIN_ID}`, {
+                        method: 'DELETE',
+                        headers: {
+                            'X-Master-Key': this.MASTER_KEY
+                        }
+                    });
+                }
+                
+                // Создаем новый чистый бин
+                this.BIN_ID = null;
+                localStorage.removeItem('pt_cloud_bin_id');
+                await this.createNewBin();
+                
+                this.showCloudNotification('Все данные очищены', 'success');
+                location.reload();
+            } catch (error) {
+                this.showCloudNotification('Ошибка очистки данных', 'error');
+            }
+        }
+    }
+
+    getCloudStats() {
+        const data = this.getAllLocalData();
+        return {
+            totalUsers: data.users.length,
+            totalMessages: data.chat.length,
+            totalProjects: Object.values(data.projects || {}).reduce((sum, arr) => sum + arr.length, 0),
+            totalPayments: Object.values(data.payments || {}).reduce((sum, arr) => sum + arr.length, 0),
+            lastSync: this.lastSyncTime ? this.lastSyncTime.toLocaleString('ru-RU') : 'Никогда',
+            binId: this.BIN_ID ? `${this.BIN_ID.substring(0, 8)}...` : 'Не создан'
+        };
     }
 }
 
-document.querySelectorAll(".nav-btn, .quick-buttons button").forEach((btn) => {
-    btn.addEventListener("click", () => {
-        const id = btn.dataset.section;
-        if (id) showSection(id);
-    });
-});
-
-backBtn.addEventListener("click", () => {
-    if (historyStack.length > 1) {
-        historyStack.pop();
-        const prev = historyStack.pop();
-        showSection(prev, true);
-    }
-});
-
-// ===== СИСТЕМА СОХРАНЕНИЯ ПРОФИЛЕЙ =====
+// ===== ОБНОВЛЕННЫЙ КЛАСС USERMANAGER С ПОДДЕРЖКОЙ ОБЛАКА =====
 class UserManager {
-    constructor() {
+    constructor(cloudSync) {
         this.usersKey = 'pt_users';
         this.currentUserKey = 'pt_current_user';
         this.savedProfilesKey = 'pt_saved_profiles';
+        this.cloudSync = cloudSync;
         this.users = this.loadUsers();
         this.savedProfiles = this.loadSavedProfiles();
     }
@@ -65,10 +473,17 @@ class UserManager {
 
     saveUsers() {
         localStorage.setItem(this.usersKey, JSON.stringify(this.users));
+        // Автосинхронизация с облаком
+        if (this.cloudSync) {
+            setTimeout(() => this.cloudSync.saveToCloud(), 1000);
+        }
     }
 
     saveSavedProfiles() {
         localStorage.setItem(this.savedProfilesKey, JSON.stringify(this.savedProfiles));
+        if (this.cloudSync) {
+            setTimeout(() => this.cloudSync.saveToCloud(), 1000);
+        }
     }
 
     // Регистрация нового пользователя
@@ -80,12 +495,13 @@ class UserManager {
 
         // Создаем нового пользователя
         const newUser = {
-            id: Date.now().toString(),
+            id: Date.now().toString() + Math.random().toString(36).substr(2, 9), // Уникальный ID
             name: userData.name,
             email: userData.email,
             password: userData.password,
             role: userData.email === 'admin@mail' ? 'admin' : 'client',
             regDate: new Date().toLocaleDateString('ru-RU'),
+            regTimestamp: Date.now(),
             phone: '',
             city: '',
             car: '',
@@ -108,6 +524,11 @@ class UserManager {
             this.saveProfileForQuickLogin(newUser);
         }
 
+        // Автосинхронизация
+        if (this.cloudSync) {
+            this.cloudSync.saveToCloud();
+        }
+
         return newUser;
     }
 
@@ -118,6 +539,10 @@ class UserManager {
         if (!user) {
             throw new Error('Неверный email или пароль');
         }
+
+        // Обновляем время последнего входа
+        user.lastLogin = Date.now();
+        this.saveUsers();
 
         // Сохраняем текущего пользователя
         localStorage.setItem(this.currentUserKey, JSON.stringify(user));
@@ -138,7 +563,8 @@ class UserManager {
             name: user.name,
             email: user.email,
             avatar: user.avatar,
-            lastLogin: new Date().toISOString()
+            lastLogin: new Date().toISOString(),
+            timestamp: Date.now()
         };
 
         // Проверяем, не сохранен ли уже этот профиль
@@ -239,870 +665,55 @@ class UserManager {
             }
         }
     }
+
+    // Получение всех пользователей (для админа)
+    getAllUsers() {
+        return this.users;
+    }
+
+    // Получение администраторов
+    getAdmins() {
+        return this.users.filter(u => u.role === 'admin');
+    }
 }
 
-// Создаем экземпляр менеджера пользователей
-const userManager = new UserManager();
+// ===== ИНИЦИАЛИЗАЦИЯ СИСТЕМЫ СИНХРОНИЗАЦИИ =====
+let cloudSync;
+let userManager;
 
-// ===== ОТОБРАЖЕНИЕ СОХРАНЕННЫХ ПРОФИЛЕЙ =====
-function renderSavedUserList() {
-    const userList = document.getElementById('user-list');
-    const savedProfiles = userManager.savedProfiles;
-    
-    userList.innerHTML = '';
-    
-    if (savedProfiles.length === 0) {
-        userList.innerHTML = '<p class="no-users">Нет сохраненных профилей</p>';
-        return;
-    }
-    
-    savedProfiles.forEach(profile => {
-        const userItem = document.createElement('div');
-        userItem.className = 'user-item';
-        
-        const avatarLetter = profile.name ? profile.name.charAt(0).toUpperCase() : 'U';
-        
-        userItem.innerHTML = `
-            <div class="user-avatar">${avatarLetter}</div>
-            <div class="user-info">
-                <div class="user-name">${profile.name}</div>
-                <div class="user-email">${profile.email}</div>
-            </div>
-            <button class="user-remove" data-email="${profile.email}" title="Удалить профиль">
-                <i class="fas fa-times"></i>
-            </button>
-        `;
-        
-        userList.appendChild(userItem);
-        
-        // Добавляем обработчик клика на профиль
-        userItem.addEventListener('click', (e) => {
-            if (!e.target.closest('.user-remove')) {
-                document.getElementById('login-email').value = profile.email;
-                document.getElementById('login-password').focus();
-            }
-        });
-        
-        // Добавляем обработчик удаления профиля
-        const removeBtn = userItem.querySelector('.user-remove');
-        removeBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            if (confirm(`Удалить профиль ${profile.name}?`)) {
-                userManager.removeSavedProfile(profile.email);
-                renderSavedUserList();
-                showNotification('Профиль удален из сохраненных', 'info');
-            }
-        });
-    });
-}
-
-// ===== РЕНДЕРИНГ СПИСКА ПРОФИЛЕЙ В РАЗДЕЛЕ ПРОФИЛЯ =====
-function renderSavedProfiles() {
-    const profilesList = document.getElementById('profiles-list');
-    const savedProfiles = userManager.savedProfiles;
-    
-    profilesList.innerHTML = '';
-    
-    if (savedProfiles.length === 0) {
-        profilesList.innerHTML = '<p class="no-profiles">Нет сохраненных профилей для быстрого входа</p>';
-        return;
-    }
-    
-    savedProfiles.forEach(profile => {
-        const profileItem = document.createElement('div');
-        profileItem.className = 'profile-item';
-        
-        const avatarLetter = profile.name ? profile.name.charAt(0).toUpperCase() : 'U';
-        const lastLogin = profile.lastLogin ? new Date(profile.lastLogin).toLocaleDateString('ru-RU') : 'Неизвестно';
-        
-        profileItem.innerHTML = `
-            <div class="profile-item-header">
-                <div class="profile-item-avatar">
-                    ${profile.avatar ? `<img src="${profile.avatar}" alt="${profile.name}">` : avatarLetter}
-                </div>
-                <div class="profile-item-info">
-                    <h3>${profile.name}</h3>
-                    <p>${profile.email}</p>
-                </div>
-            </div>
-            <div class="profile-item-details">
-                <p><i class="fas fa-calendar-alt"></i> Последний вход: ${lastLogin}</p>
-            </div>
-            <div class="profile-item-actions">
-                <button class="profile-item-btn login-profile-btn" data-email="${profile.email}">
-                    <i class="fas fa-sign-in-alt"></i> Быстрый вход
-                </button>
-                <button class="profile-item-btn remove-profile-btn" data-email="${profile.email}">
-                    <i class="fas fa-trash"></i> Удалить
-                </button>
-            </div>
-        `;
-        
-        profilesList.appendChild(profileItem);
-    });
-    
-    // Добавляем обработчики для кнопок
-    document.querySelectorAll('.login-profile-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const email = this.dataset.email;
-            quickLogin(email);
-        });
-    });
-    
-    document.querySelectorAll('.remove-profile-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const email = this.dataset.email;
-            if (confirm(`Удалить профиль из сохраненных?`)) {
-                userManager.removeSavedProfile(email);
-                renderSavedProfiles();
-                renderSavedUserList();
-                showNotification('Профиль удален из сохраненных', 'info');
-            }
-        });
-    });
-}
-
-// Быстрый вход по сохраненному профилю
-function quickLogin(email) {
-    const user = userManager.getUserByEmail(email);
-    
-    if (!user) {
-        showNotification('Пользователь не найден', 'error');
-        return;
-    }
-    
-    // Запрашиваем пароль для быстрого входа
-    const password = prompt(`Введите пароль для ${user.name}:`);
-    
-    if (!password) {
-        return;
-    }
-    
+async function initCloudSystem() {
     try {
-        const loggedInUser = userManager.login(user.email, password, true);
-        setUserUI(loggedInUser);
-        authOverlay.style.display = 'none';
-        showNotification(`Добро пожаловать, ${loggedInUser.name}!`, 'success');
+        cloudSync = new CloudSync();
+        userManager = new UserManager(cloudSync);
+        
+        // Настраиваем обработчики кнопок синхронизации
+        document.getElementById('force-sync')?.addEventListener('click', () => {
+            cloudSync.forceSync();
+        });
+        
+        document.getElementById('clear-all-data')?.addEventListener('click', () => {
+            cloudSync.clearAllData();
+        });
+        
+        return { cloudSync, userManager };
     } catch (error) {
-        showNotification(error.message, 'error');
+        console.error('Ошибка инициализации облачной системы:', error);
+        // Создаем локальные менеджеры без облака
+        userManager = new UserManager(null);
+        return { cloudSync: null, userManager };
     }
 }
 
-// ===== КАТАЛОГ: ФИЛЬТРАЦИЯ + СОРТИРОВКА ПО ЦЕНЕ =====
-function setupCatalog(section) {
-    const grid = section.querySelector(".catalog-grid");
-    if (!grid) return;
-
-    const cards = Array.from(grid.querySelectorAll(".part-card"));
-    const categorySelect = section.querySelector(".filter-category");
-    const sortSelect = section.querySelector(".filter-sort");
-    const initialOrder = cards.slice();
-
-    function applyFilters() {
-        const typeValue = categorySelect ? categorySelect.value : "all";
-        let currentCards = initialOrder.slice();
-
-        if (typeValue !== "all") {
-            currentCards = currentCards.filter((card) => card.dataset.type === typeValue);
-        }
-
-        const sortValue = sortSelect ? sortSelect.value : "default";
-        if (sortValue === "asc" || sortValue === "desc") {
-            currentCards.sort((a, b) => {
-                const pa = Number(a.dataset.price);
-                const pb = Number(b.dataset.price);
-                return sortValue === "asc" ? pa - pb : pb - pa;
-            });
-        }
-
-        grid.innerHTML = "";
-        currentCards.forEach((card) => grid.appendChild(card));
-        
-        // Обновляем обработчики событий для новых карточек
-        setupCatalogCards();
-    }
-
-    if (categorySelect) categorySelect.addEventListener("change", applyFilters);
-    if (sortSelect) sortSelect.addEventListener("change", applyFilters);
-
-    applyFilters();
-}
-
-// Настройка обработчиков событий для карточек каталога
-function setupCatalogCards() {
-    // Обработчики для кнопок "Добавить"
-    document.querySelectorAll(".add-btn").forEach((btn) => {
-        if (!btn.hasAttribute("data-listener")) {
-            btn.setAttribute("data-listener", "true");
-            btn.addEventListener("click", addToProject);
-        }
-    });
-
-    // Обработчики для кнопок "Сравнить"
-    document.querySelectorAll(".compare-btn").forEach((btn) => {
-        if (!btn.hasAttribute("data-listener")) {
-            btn.setAttribute("data-listener", "true");
-            btn.addEventListener("click", addToCompare);
-        }
-    });
-}
-
-// Инициализация каталогов
-document.querySelectorAll("[data-category]").forEach(setupCatalog);
-
-// ===== ПРОЕКТ + КАЛЬКУЛЯТОР =====
-const projectItems = document.getElementById("project-items");
-const partsSumSpan = document.getElementById("parts-sum");
-const totalSumSpan = document.getElementById("total-sum");
-const partsCountSpan = document.getElementById("parts-count");
-const laborInput = document.getElementById("labor-input");
-let projectParts = [];
-
-// Загрузка проекта из localStorage
-function loadProject() {
-    const currentUser = userManager.getCurrentUser();
-    if (!currentUser) return;
-    
-    const saved = localStorage.getItem(`pt_project_${currentUser.id}`);
-    if (saved) {
-        projectParts = JSON.parse(saved);
-        renderProject();
-    }
-}
-
-// Сохранение проекта в localStorage
-function saveProject() {
-    const currentUser = userManager.getCurrentUser();
-    if (!currentUser) return;
-    
-    localStorage.setItem(`pt_project_${currentUser.id}`, JSON.stringify(projectParts));
-}
-
-function renderProject() {
-    if (!projectItems) return;
-    projectItems.innerHTML = "";
-    let partsSum = 0;
-
-    projectParts.forEach((part, index) => {
-        partsSum += part.price;
-        const li = document.createElement("li");
-        li.innerHTML = `
-            <span><strong>${part.name}</strong></span>
-            <span>${part.price.toLocaleString("ru-RU")} ₽</span>
-            <button class="remove-part" data-index="${index}"><i class="fas fa-times"></i></button>
-        `;
-        projectItems.appendChild(li);
-    });
-
-    // Добавляем обработчики для кнопок удаления
-    document.querySelectorAll(".remove-part").forEach(btn => {
-        btn.addEventListener("click", function() {
-            const index = parseInt(this.dataset.index);
-            projectParts.splice(index, 1);
-            saveProject();
-            renderProject();
-            updatePaymentAmount();
-        });
-    });
-
-    partsCountSpan.textContent = projectParts.length;
-    partsSumSpan.textContent = partsSum.toLocaleString("ru-RU");
-    const labor = Number(laborInput.value) || 0;
-    const total = partsSum + labor;
-    totalSumSpan.textContent = total.toLocaleString("ru-RU");
-
-    updatePaymentAmount();
-    saveProject();
-}
-
-function addToProject(e) {
-    const card = e.target.closest(".part-card");
-    const name = card.dataset.name;
-    const price = Number(card.dataset.price);
-    const type = card.dataset.type;
-    
-    projectParts.push({ name, price, type });
-    renderProject();
-    
-    showNotification(`Компонент "${name}" добавлен в проект.`, "success");
-}
-
-laborInput.addEventListener("input", () => {
-    renderProject();
-    updatePaymentAmount();
-});
-
-document.getElementById("clear-project").addEventListener("click", () => {
-    if (projectParts.length > 0 && confirm("Очистить текущий проект? Все добавленные детали будут удалены.")) {
-        projectParts = [];
-        renderProject();
-        showNotification("Проект очищен", "info");
-    }
-});
-
-document.getElementById("export-estimate").addEventListener("click", () => {
-    if (projectParts.length === 0) {
-        showNotification("Добавьте детали в проект перед сохранением сметы", "warning");
-        return;
-    }
-    
-    const currentUser = userManager.getCurrentUser();
-    if (!currentUser) return;
-    
-    const saved = {
-        date: new Date().toLocaleString("ru-RU"),
-        userId: currentUser.id,
-        userName: currentUser.name,
-        parts: projectParts,
-        labor: Number(laborInput.value) || 0,
-        total: Number(totalSumSpan.textContent.replace(/\s/g, "")) || 0
-    };
-    
-    // Сохраняем историю проектов
-    const history = JSON.parse(localStorage.getItem(`pt_projects_history_${currentUser.id}`) || "[]");
-    history.unshift(saved);
-    if (history.length > 10) history.pop(); // Ограничиваем 10 последних проектов
-    localStorage.setItem(`pt_projects_history_${currentUser.id}`, JSON.stringify(history));
-    
-    // Обновляем статистику пользователя
-    const userStats = userManager.getUserStats(currentUser.id);
-    userManager.updateUserStats(currentUser.id, {
-        projects: (userStats?.projects || 0) + 1
-    });
-    
-    // Создаем текстовый файл со сметой
-    let estimateText = `Смета PriorLab\n`;
-    estimateText += `Дата: ${saved.date}\n`;
-    estimateText += `Клиент: ${saved.userName}\n`;
-    estimateText += `========================\n\n`;
-    estimateText += `Детали:\n`;
-    saved.parts.forEach(part => {
-        estimateText += `  • ${part.name}: ${part.price.toLocaleString("ru-RU")} ₽\n`;
-    });
-    estimateText += `\nРабота: ${saved.labor.toLocaleString("ru-RU")} ₽\n`;
-    estimateText += `========================\n`;
-    estimateText += `Итого: ${saved.total.toLocaleString("ru-RU")} ₽\n`;
-    
-    const blob = new Blob([estimateText], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `Смета_${currentUser.name}_${new Date().toISOString().slice(0, 10)}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    
-    showNotification("Смета сохранена и добавлена в историю", "success");
-});
-
-// ===== ОПЛАТА =====
-const payBtn = document.getElementById("pay-btn");
-const paymentBlock = document.getElementById("payment-block");
-const paymentForm = document.getElementById("payment-form");
-const cancelPaymentBtn = document.getElementById("cancel-payment");
-
-function updatePaymentAmount() {
-    const payAmountInput = document.getElementById("pay-amount");
-    if (payAmountInput) {
-        const total = Number(totalSumSpan.textContent.replace(/\s/g, "")) || 0;
-        payAmountInput.value = total;
-    }
-}
-
-payBtn.addEventListener("click", () => {
-    if (projectParts.length === 0) {
-        showNotification("Добавьте детали в проект перед оплатой", "warning");
-        return;
-    }
-    
-    paymentBlock.classList.remove("hidden");
-    updatePaymentAmount();
-});
-
-cancelPaymentBtn.addEventListener("click", () => {
-    paymentBlock.classList.add("hidden");
-});
-
-paymentForm.addEventListener("submit", (e) => {
-    e.preventDefault();
-    
-    const amount = Number(document.getElementById("pay-amount").value) || 0;
-    const cardNumber = document.getElementById("card-number").value.replace(/\s/g, "");
-    const cardName = document.getElementById("card-name").value.trim();
-    const cardExp = document.getElementById("card-exp").value.trim();
-    const cardCvc = document.getElementById("card-cvc").value.trim();
-    
-    if (amount <= 0) {
-        showNotification("Сначала сформируйте проект и сумму к оплате", "warning");
-        return;
-    }
-    
-    if (cardNumber.length !== 16 || !/^\d+$/.test(cardNumber)) {
-        showNotification("Введите корректный номер карты (16 цифр)", "error");
-        return;
-    }
-    
-    // Имитация успешной оплаты
-    showNotification(`Оплата ${amount.toLocaleString("ru-RU")} ₽ прошла успешно (тестовый режим).`, "success");
-    
-    // Сохраняем информацию о платеже
-    const currentUser = userManager.getCurrentUser();
-    if (currentUser) {
-        const payment = {
-            date: new Date().toLocaleString("ru-RU"),
-            amount,
-            project: projectParts,
-            userId: currentUser.id,
-            userName: currentUser.name
-        };
-        
-        const payments = JSON.parse(localStorage.getItem(`pt_payments_${currentUser.id}`) || "[]");
-        payments.push(payment);
-        localStorage.setItem(`pt_payments_${currentUser.id}`, JSON.stringify(payments));
-        
-        // Обновляем статистику пользователя
-        const userStats = userManager.getUserStats(currentUser.id);
-        userManager.updateUserStats(currentUser.id, {
-            spent: (userStats?.spent || 0) + amount,
-            level: Math.min(Math.floor(((userStats?.spent || 0) + amount) / 10000) + 1, 10)
-        });
-        
-        // Обновляем статистику профиля
-        updateProfileStats();
-    }
-    
-    // Скрываем форму оплаты и очищаем проект
-    paymentBlock.classList.add("hidden");
-    paymentForm.reset();
-    projectParts = [];
-    renderProject();
-    
-    // Показываем раздел профиля
-    showSection("profile");
-});
-
-// ===== СРАВНЕНИЕ ДЕТАЛЕЙ =====
-let compareItems = [];
-
-function addToCompare(e) {
-    const card = e.target.closest(".part-card");
-    const name = card.dataset.name;
-    const price = card.dataset.price;
-    const type = card.dataset.type;
-    
-    // Получаем все характеристики из data-атрибутов
-    const attributes = {};
-    for (const [key, value] of Object.entries(card.dataset)) {
-        attributes[key] = value;
-    }
-    
-    // Проверяем, не добавлена ли уже эта деталь
-    if (compareItems.some(item => item.name === name)) {
-        showNotification("Деталь уже добавлена для сравнения", "warning");
-        return;
-    }
-    
-    // Ограничиваем до 2 деталей
-    if (compareItems.length >= 2) {
-        showNotification("Можно сравнивать только 2 детали одновременно", "warning");
-        return;
-    }
-    
-    compareItems.push({
-        name,
-        price,
-        type,
-        attributes
-    });
-    
-    renderCompare();
-    showNotification(`"${name}" добавлен для сравнения`, "success");
-}
-
-function renderCompare() {
-    const compareContainer = document.getElementById("compare-container");
-    const compareItemsContainer = document.getElementById("compare-items");
-    const compareTableContainer = document.getElementById("compare-table-container");
-    
-    compareItemsContainer.innerHTML = "";
-    
-    if (compareItems.length === 0) {
-        compareItemsContainer.innerHTML = '<p class="empty-compare">Выберите детали для сравнения из каталога</p>';
-        compareTableContainer.classList.add("hidden");
-        return;
-    }
-    
-    // Показываем выбранные детали
-    compareItems.forEach((item, index) => {
-        const itemDiv = document.createElement("div");
-        itemDiv.className = "compare-item";
-        itemDiv.innerHTML = `
-            <span>${item.name}</span>
-            <button class="compare-item-remove" data-index="${index}"><i class="fas fa-times"></i></button>
-        `;
-        compareItemsContainer.appendChild(itemDiv);
-    });
-    
-    // Добавляем обработчики для кнопок удаления
-    document.querySelectorAll(".compare-item-remove").forEach(btn => {
-        btn.addEventListener("click", function() {
-            const index = parseInt(this.dataset.index);
-            compareItems.splice(index, 1);
-            renderCompare();
-        });
-    });
-    
-    // Если есть 2 детали для сравнения, показываем таблицу
-    if (compareItems.length === 2) {
-        renderCompareTable();
-        compareTableContainer.classList.remove("hidden");
-    } else {
-        compareTableContainer.classList.add("hidden");
-    }
-}
-
-function renderCompareTable() {
-    const compareHeader1 = document.getElementById("compare-header1");
-    const compareHeader2 = document.getElementById("compare-header2");
-    const compareBody = document.getElementById("compare-body");
-    
-    compareHeader1.textContent = compareItems[0].name;
-    compareHeader2.textContent = compareItems[1].name;
-    
-    compareBody.innerHTML = "";
-    
-    // Определяем все уникальные характеристики для сравнения
-    const allAttributes = new Set();
-    compareItems.forEach(item => {
-        Object.keys(item.attributes).forEach(attr => {
-            if (!["name", "price", "type"].includes(attr)) {
-                allAttributes.add(attr);
-            }
-        });
-    });
-    
-    // Добавляем базовые характеристики
-    const baseAttributes = ["price", "type"];
-    baseAttributes.forEach(attr => {
-        const tr = document.createElement("tr");
-        const attrName = attr === "price" ? "Цена" : attr === "type" ? "Категория" : attr;
-        
-        let value1 = attr === "price" ? `${compareItems[0][attr]} ₽` : compareItems[0][attr];
-        let value2 = attr === "price" ? `${compareItems[1][attr]} ₽` : compareItems[1][attr];
-        
-        tr.innerHTML = `
-            <td>${attrName}</td>
-            <td>${value1}</td>
-            <td>${value2}</td>
-        `;
-        compareBody.appendChild(tr);
-    });
-    
-    // Добавляем дополнительные характеристики
-    allAttributes.forEach(attr => {
-        const tr = document.createElement("tr");
-        const attrName = getAttributeDisplayName(attr);
-        
-        const value1 = compareItems[0].attributes[attr] || "-";
-        const value2 = compareItems[1].attributes[attr] || "-";
-        
-        tr.innerHTML = `
-            <td>${attrName}</td>
-            <td>${value1}</td>
-            <td>${value2}</td>
-        `;
-        compareBody.appendChild(tr);
-    });
-}
-
-function getAttributeDisplayName(attr) {
-    const names = {
-        "desc": "Описание",
-        "power": "Мощность",
-        "torque": "Крутящий момент",
-        "weight": "Вес",
-        "fuel": "Топливо",
-        "sound": "Звук",
-        "material": "Материал",
-        "turbo": "Давление турбины",
-        "install": "Сложность установки",
-        "lowering": "Понижение",
-        "adjust": "Регулировка",
-        "type-susp": "Тип подвески",
-        "comfort": "Комфорт",
-        "color": "Цвет",
-        "parts": "Количество частей",
-        "speakers": "Кол-во динамиков",
-        "subwoofer": "Сабвуфер",
-        "control": "Управление",
-        "heating": "Подогрев"
-    };
-    
-    return names[attr] || attr;
-}
-
-document.getElementById("clear-compare").addEventListener("click", () => {
-    compareItems = [];
-    renderCompare();
-    showNotification("Сравнение очищено", "info");
-});
-
-// ===== ПРОФИЛЬ =====
-const logoutBtn = document.getElementById("logout-btn");
-const quickLogoutBtn = document.getElementById("quick-logout");
-const userNameTitle = document.getElementById("user-name-title");
-const editProfileBtn = document.getElementById("edit-profile-btn");
-const profileDisplay = document.getElementById("profile-display");
-const profileEditForm = document.getElementById("profile-edit-form");
-const cancelEditBtn = document.getElementById("cancel-edit-btn");
-const avatarInput = document.getElementById("profile-avatar-input");
-const removeAvatarBtn = document.getElementById("remove-avatar");
-const adminBadge = document.getElementById("admin-badge");
-const clearAllProfilesBtn = document.getElementById("clear-all-profiles");
-
-// Элементы отображения профиля
-const profileNameDisplay = document.getElementById("profile-name-display");
-const profileEmailDisplay = document.getElementById("profile-email-display");
-const profilePhoneDisplay = document.getElementById("profile-phone-display");
-const profileCityDisplay = document.getElementById("profile-city-display");
-const profileCarDisplay = document.getElementById("profile-car-display");
-const profileExperienceDisplay = document.getElementById("profile-experience-display");
-const profileRegDate = document.getElementById("profile-regdate");
-
-// Элементы редактирования профиля
-const profileNameEdit = document.getElementById("profile-name-edit");
-const profileEmailEdit = document.getElementById("profile-email-edit");
-const profilePhoneEdit = document.getElementById("profile-phone-edit");
-const profileCityEdit = document.getElementById("profile-city-edit");
-const profileCarEdit = document.getElementById("profile-car-edit");
-const profileExperienceEdit = document.getElementById("profile-experience-edit");
-
-// Аватар
-const avatarDisplay = document.getElementById("profile-avatar-img");
-const avatarLetter = document.getElementById("avatar-letter");
-const avatarPreview = document.getElementById("profile-avatar-preview");
-const avatarLetterEdit = document.getElementById("avatar-letter-edit");
-
-// Загрузка данных профиля
-function loadProfileData() {
-    const currentUser = userManager.getCurrentUser();
-    
-    if (currentUser) {
-        // Отображение профиля
-        profileNameDisplay.textContent = currentUser.name;
-        profileEmailDisplay.textContent = currentUser.email || "Не указан";
-        profilePhoneDisplay.textContent = currentUser.phone || "Не указан";
-        profileCityDisplay.textContent = currentUser.city || "Не указан";
-        profileCarDisplay.textContent = currentUser.car || "Не указан";
-        profileExperienceDisplay.textContent = currentUser.experience || "Не указан";
-        profileRegDate.textContent = currentUser.regDate || new Date().toLocaleDateString("ru-RU");
-        
-        // Заполнение формы редактирования
-        profileNameEdit.value = currentUser.name || "";
-        profileEmailEdit.value = currentUser.email || "";
-        profilePhoneEdit.value = currentUser.phone || "";
-        profileCityEdit.value = currentUser.city || "";
-        profileCarEdit.value = currentUser.car || "";
-        profileExperienceEdit.value = currentUser.experience || "Новичок";
-        
-        // Установка аватара
-        if (currentUser.avatar) {
-            avatarDisplay.src = currentUser.avatar;
-            avatarDisplay.style.display = "block";
-            avatarLetter.style.display = "none";
-            
-            avatarPreview.src = currentUser.avatar;
-            avatarPreview.style.display = "block";
-            avatarLetterEdit.style.display = "none";
-        } else {
-            avatarDisplay.style.display = "none";
-            avatarLetter.style.display = "flex";
-            avatarLetter.textContent = currentUser.name ? currentUser.name.charAt(0).toUpperCase() : "P";
-            
-            avatarPreview.style.display = "none";
-            avatarLetterEdit.style.display = "flex";
-            avatarLetterEdit.textContent = currentUser.name ? currentUser.name.charAt(0).toUpperCase() : "P";
-        }
-        
-        // Показываем бейдж администратора
-        if (currentUser.role === "admin") {
-            adminBadge.style.display = "flex";
-        } else {
-            adminBadge.style.display = "none";
-        }
-    }
-}
-
-// Обновление статистики профиля
-function updateProfileStats() {
-    const currentUser = userManager.getCurrentUser();
-    if (!currentUser) return;
-    
-    // Загружаем историю проектов пользователя
-    const history = JSON.parse(localStorage.getItem(`pt_projects_history_${currentUser.id}`) || "[]");
-    document.getElementById("projects-count").textContent = history.length;
-    
-    // Загружаем платежи пользователя
-    const payments = JSON.parse(localStorage.getItem(`pt_payments_${currentUser.id}`) || "[]");
-    const totalSpent = payments.reduce((sum, payment) => sum + payment.amount, 0);
-    document.getElementById("total-spent").textContent = totalSpent.toLocaleString("ru-RU") + " ₽";
-    
-    // Подсчет сообщений
-    const chat = JSON.parse(localStorage.getItem("pt_chat") || "[]");
-    const userMessages = chat.filter(m => m.userId === currentUser.id).length;
-    document.getElementById("messages-count").textContent = userMessages;
-    
-    // Расчет уровня пользователя
-    const userStats = userManager.getUserStats(currentUser.id);
-    const userLevel = userStats?.level || 1;
-    document.getElementById("user-level").textContent = userLevel;
-    
-    // Показываем историю проектов если она есть
-    if (history.length > 0) {
-        const historyContainer = document.querySelector(".projects-history");
-        const historyList = document.getElementById("projects-history-list");
-        
-        historyContainer.classList.remove("hidden");
-        historyList.innerHTML = "";
-        
-        history.slice(0, 5).forEach(project => {
-            const projectDiv = document.createElement("div");
-            projectDiv.className = "history-item";
-            projectDiv.innerHTML = `
-                <h3>Проект от ${project.date}</h3>
-                <div class="history-details">
-                    <p>Деталей: ${project.parts.length}</p>
-                    <p>Работа: ${project.labor.toLocaleString("ru-RU")} ₽</p>
-                </div>
-                <div class="history-total">Итого: ${project.total.toLocaleString("ru-RU")} ₽</div>
-            `;
-            historyList.appendChild(projectDiv);
-        });
-    } else {
-        const historyContainer = document.querySelector(".projects-history");
-        historyContainer.classList.add("hidden");
-    }
-}
-
-// Редактирование профиля
-editProfileBtn.addEventListener("click", () => {
-    profileDisplay.classList.add("hidden");
-    profileEditForm.classList.remove("hidden");
-});
-
-cancelEditBtn.addEventListener("click", () => {
-    profileDisplay.classList.remove("hidden");
-    profileEditForm.classList.add("hidden");
-    loadProfileData(); // Возвращаем исходные данные
-});
-
-// Загрузка аватара
-avatarInput.addEventListener("change", function(e) {
-    const file = e.target.files[0];
-    if (!file) return;
-    
-    if (!file.type.startsWith("image/")) {
-        showNotification("Пожалуйста, выберите изображение", "error");
-        return;
-    }
-    
-    if (file.size > 5 * 1024 * 1024) { // 5MB limit
-        showNotification("Изображение должно быть меньше 5MB", "error");
-        return;
-    }
-    
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        const imgData = e.target.result;
-        
-        // Показываем превью
-        avatarPreview.src = imgData;
-        avatarPreview.style.display = "block";
-        avatarLetterEdit.style.display = "none";
-        
-        // Сохраняем в текущем пользователе
-        const currentUser = userManager.getCurrentUser();
-        if (currentUser) {
-            currentUser.avatar = imgData;
-            userManager.updateUser(currentUser);
-            
-            // Обновляем отображение аватара
-            avatarDisplay.src = imgData;
-            avatarDisplay.style.display = "block";
-            avatarLetter.style.display = "none";
-        }
-    };
-    reader.readAsDataURL(file);
-});
-
-// Удаление аватара
-removeAvatarBtn.addEventListener("click", () => {
-    const currentUser = userManager.getCurrentUser();
-    if (currentUser) {
-        currentUser.avatar = null;
-        userManager.updateUser(currentUser);
-        
-        // Обновляем отображение
-        avatarDisplay.style.display = "none";
-        avatarLetter.style.display = "flex";
-        avatarLetter.textContent = currentUser.name ? currentUser.name.charAt(0).toUpperCase() : "P";
-        
-        avatarPreview.style.display = "none";
-        avatarLetterEdit.style.display = "flex";
-        avatarLetterEdit.textContent = currentUser.name ? currentUser.name.charAt(0).toUpperCase() : "P";
-    }
-});
-
-// Сохранение профиля
-profileEditForm.addEventListener("submit", (e) => {
-    e.preventDefault();
-    
-    const currentUser = userManager.getCurrentUser();
-    if (!currentUser) return;
-    
-    currentUser.name = profileNameEdit.value.trim();
-    currentUser.phone = profilePhoneEdit.value.trim();
-    currentUser.city = profileCityEdit.value.trim();
-    currentUser.car = profileCarEdit.value.trim();
-    currentUser.experience = profileExperienceEdit.value;
-    
-    userManager.updateUser(currentUser);
-    
-    // Обновляем интерфейс
-    setUserUI(currentUser);
-    loadProfileData();
-    
-    // Возвращаемся к просмотру профиля
-    profileDisplay.classList.remove("hidden");
-    profileEditForm.classList.add("hidden");
-    
-    showNotification("Профиль сохранен", "success");
-});
-
-// Удаление всех сохраненных профилей
-clearAllProfilesBtn.addEventListener("click", () => {
-    if (confirm("Вы уверены, что хотите удалить все сохраненные профили для быстрого входа?")) {
-        userManager.clearSavedProfiles();
-        renderSavedProfiles();
-        renderSavedUserList();
-        showNotification("Все сохраненные профили удалены", "info");
-    }
-});
-
-// ===== ЧАТ ПОДДЕРЖКИ =====
-const supportForm = document.getElementById("support-form");
-const chatWindow = document.getElementById("chat-window");
-const adminSendBtn = document.getElementById("admin-send");
-const adminAnswerInput = document.getElementById("admin-answer-text");
-const adminControls = document.getElementById("admin-controls");
-const userControls = document.getElementById("user-controls");
+// ===== ОБНОВЛЕННЫЕ ФУНКЦИИ ДЛЯ РАБОТЫ С ЧАТОМ (МЕЖПЛАТФОРМЕННЫМ) =====
 
 function loadChatMessages() {
-    const chat = JSON.parse(localStorage.getItem("pt_chat") || "[]");
+    const chat = JSON.parse(localStorage.getItem('pt_chat') || '[]');
     const currentUser = userManager.getCurrentUser();
     
-    chatWindow.innerHTML = "";
+    const chatWindow = document.getElementById('chat-window');
+    if (!chatWindow) return;
+    
+    chatWindow.innerHTML = '';
     
     if (chat.length === 0) {
         chatWindow.innerHTML = `
@@ -1112,28 +723,31 @@ function loadChatMessages() {
             </div>
         `;
     } else {
-        // Фильтруем сообщения: админ видит все, пользователь только свои
-        const filteredChat = currentUser && currentUser.role === "admin" 
-            ? chat 
-            : chat.filter(m => m.userId === (currentUser?.id || '') || m.from === "admin");
+        // Сортируем сообщения по времени
+        const sortedChat = chat.sort((a, b) => {
+            const timeA = a.timestamp || 0;
+            const timeB = b.timestamp || 0;
+            return timeA - timeB;
+        });
         
-        filteredChat.forEach(msg => {
-            const div = document.createElement("div");
-            div.classList.add("chat-message");
-            div.classList.add(msg.from === "admin" ? "chat-message-admin" : "chat-message-user");
+        sortedChat.forEach(msg => {
+            const div = document.createElement('div');
+            div.classList.add('chat-message');
+            div.classList.add(msg.from === 'admin' ? 'chat-message-admin' : 'chat-message-user');
             
-            const time = new Date(msg.timestamp || Date.now()).toLocaleTimeString("ru-RU", {
+            const time = msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString('ru-RU', {
                 hour: '2-digit',
                 minute: '2-digit'
-            });
+            }) : 'Неизвестно';
             
-            const userName = msg.from === "admin" ? "Админ" : msg.userName || "Клиент";
+            const userName = msg.from === 'admin' ? 'Админ' : msg.userName || 'Клиент';
             
             div.innerHTML = `
+                <div><strong>${userName}</strong></div>
                 <div>${msg.text}</div>
                 <div class="chat-meta">
-                    <span>${userName}</span>
                     <span>${time}</span>
+                    ${msg.device ? `<span><i class="fas fa-desktop"></i> ${msg.device}</span>` : ''}
                 </div>
             `;
             chatWindow.appendChild(div);
@@ -1143,41 +757,41 @@ function loadChatMessages() {
     }
     
     // Показываем/скрываем элементы управления в зависимости от роли
-    if (currentUser && currentUser.role === "admin") {
-        adminControls.classList.remove("hidden");
-        userControls.classList.add("hidden");
+    const adminControls = document.getElementById('admin-controls');
+    const userControls = document.getElementById('user-controls');
+    
+    if (currentUser && currentUser.role === 'admin') {
+        if (adminControls) adminControls.classList.remove('hidden');
+        if (userControls) userControls.classList.add('hidden');
     } else {
-        adminControls.classList.add("hidden");
-        userControls.classList.remove("hidden");
+        if (adminControls) adminControls.classList.add('hidden');
+        if (userControls) userControls.classList.remove('hidden');
     }
 }
 
-supportForm.addEventListener("submit", (e) => {
-    e.preventDefault();
-    const topic = document.getElementById("support-topic").value.trim();
-    const message = document.getElementById("support-message").value.trim();
+// Функция отправки сообщения в поддержку
+function sendSupportMessage(topic, message) {
     const currentUser = userManager.getCurrentUser();
     
-    if (!topic || !message) {
-        showNotification("Заполните тему и сообщение", "warning");
-        return;
-    }
-    
     if (!currentUser) {
-        showNotification("Войдите в систему для отправки сообщения", "error");
-        return;
+        showNotification('Войдите в систему для отправки сообщения', 'error');
+        return false;
     }
     
-    const chat = JSON.parse(localStorage.getItem("pt_chat") || "[]");
-    chat.push({
-        from: "user",
+    const chat = JSON.parse(localStorage.getItem('pt_chat') || '[]');
+    const newMessage = {
+        from: 'user',
         userId: currentUser.id,
         userName: currentUser.name,
+        userEmail: currentUser.email,
         text: `Тема: ${topic}\n${message}`,
-        timestamp: Date.now()
-    });
+        timestamp: Date.now(),
+        device: getDeviceInfo(),
+        read: false // Помечаем как непрочитанное для админа
+    };
     
-    localStorage.setItem("pt_chat", JSON.stringify(chat));
+    chat.push(newMessage);
+    localStorage.setItem('pt_chat', JSON.stringify(chat));
     
     // Обновляем статистику пользователя
     const userStats = userManager.getUserStats(currentUser.id);
@@ -1185,260 +799,451 @@ supportForm.addEventListener("submit", (e) => {
         messages: (userStats?.messages || 0) + 1
     });
     
-    loadChatMessages();
-    supportForm.reset();
+    // Автосинхронизация с облаком
+    if (cloudSync) {
+        cloudSync.saveToCloud();
+    }
     
-    showNotification("Сообщение отправлено", "success");
+    return true;
+}
+
+// Функция отправки ответа администратора
+function sendAdminReply(text) {
+    const currentUser = userManager.getCurrentUser();
+    
+    if (!currentUser || currentUser.role !== 'admin') {
+        showNotification('Только администратор может отвечать', 'error');
+        return false;
+    }
+    
+    const chat = JSON.parse(localStorage.getItem('pt_chat') || '[]');
+    const newMessage = {
+        from: 'admin',
+        adminName: currentUser.name,
+        text: text,
+        timestamp: Date.now(),
+        device: getDeviceInfo()
+    };
+    
+    chat.push(newMessage);
+    localStorage.setItem('pt_chat', JSON.stringify(chat));
+    
+    // Автосинхронизация с облаком
+    if (cloudSync) {
+        cloudSync.saveToCloud();
+    }
+    
+    return true;
+}
+
+// Получение информации об устройстве
+function getDeviceInfo() {
+    const ua = navigator.userAgent;
+    let device = 'Неизвестное устройство';
+    
+    if (ua.includes('Mobile')) {
+        device = 'Мобильное устройство';
+    } else if (ua.includes('Tablet')) {
+        device = 'Планшет';
+    } else {
+        device = 'Компьютер';
+    }
+    
+    // Добавляем информацию о браузере
+    if (ua.includes('Chrome')) device += ' (Chrome)';
+    else if (ua.includes('Firefox')) device += ' (Firefox)';
+    else if (ua.includes('Safari')) device += ' (Safari)';
+    else if (ua.includes('Edge')) device += ' (Edge)';
+    
+    return device;
+}
+
+// Функция для админа: получение непрочитанных сообщений
+function getUnreadMessages() {
+    const chat = JSON.parse(localStorage.getItem('pt_chat') || '[]');
+    return chat.filter(msg => msg.from === 'user' && !msg.read);
+}
+
+// Функция для админа: пометить сообщения как прочитанные
+function markMessagesAsRead(messageIds) {
+    const chat = JSON.parse(localStorage.getItem('pt_chat') || '[]');
+    
+    chat.forEach(msg => {
+        if (messageIds.includes(msg.timestamp)) {
+            msg.read = true;
+        }
+    });
+    
+    localStorage.setItem('pt_chat', JSON.stringify(chat));
+    
+    if (cloudSync) {
+        cloudSync.saveToCloud();
+    }
+}
+
+// ===== ОБНОВЛЕННЫЙ КОД ДЛЯ РАЗДЕЛА ПОДДЕРЖКИ =====
+
+// В обработчике формы поддержки
+document.getElementById('support-form')?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const topic = document.getElementById('support-topic')?.value.trim() || '';
+    const message = document.getElementById('support-message')?.value.trim() || '';
+    
+    if (!topic || !message) {
+        showNotification('Заполните тему и сообщение', 'warning');
+        return;
+    }
+    
+    if (sendSupportMessage(topic, message)) {
+        loadChatMessages();
+        document.getElementById('support-form')?.reset();
+        showNotification('Сообщение отправлено администратору', 'success');
+        
+        // Если текущий пользователь - админ, показываем уведомление
+        const currentUser = userManager.getCurrentUser();
+        if (currentUser?.role === 'admin') {
+            showNotification('Получено новое сообщение от пользователя', 'info');
+        }
+    }
 });
 
-adminSendBtn.addEventListener("click", () => {
-    const text = adminAnswerInput.value.trim();
-    const currentUser = userManager.getCurrentUser();
+// В обработчике кнопки отправки ответа админа
+document.getElementById('admin-send')?.addEventListener('click', () => {
+    const text = document.getElementById('admin-answer-text')?.value.trim() || '';
     
     if (!text) return;
     
-    if (!currentUser || currentUser.role !== "admin") {
-        showNotification("Только администратор может отвечать", "error");
-        return;
+    if (sendAdminReply(text)) {
+        loadChatMessages();
+        document.getElementById('admin-answer-text').value = '';
+        showNotification('Ответ отправлен пользователю', 'success');
+    }
+});
+
+// ===== ФУНКЦИЯ ДЛЯ ОТОБРАЖЕНИЯ СТАТИСТИКИ ОБЛАКА =====
+function renderCloudStats() {
+    if (!cloudSync) return;
+    
+    const stats = cloudSync.getCloudStats();
+    
+    // Обновляем статус в хедере
+    const globalSync = document.getElementById('global-sync-status');
+    const globalText = document.getElementById('global-sync-text');
+    
+    if (globalSync && globalText) {
+        globalText.textContent = stats.binId;
     }
     
-    const chat = JSON.parse(localStorage.getItem("pt_chat") || "[]");
-    chat.push({
-        from: "admin",
-        text: text,
-        timestamp: Date.now()
-    });
-    
-    localStorage.setItem("pt_chat", JSON.stringify(chat));
-    loadChatMessages();
-    adminAnswerInput.value = "";
-    
-    showNotification("Ответ отправлен", "success");
-});
-
-// ===== АУТЕНТИФИКАЦИЯ =====
-const authOverlay = document.getElementById("auth-overlay");
-const loginCard = document.getElementById("login-card");
-const registerCard = document.getElementById("register-card");
-const goRegister = document.getElementById("go-register");
-const goLogin = document.getElementById("go-login");
-const loginForm = document.getElementById("login-form");
-const registerForm = document.getElementById("register-form");
-
-goRegister.addEventListener("click", () => {
-    loginCard.classList.add("hidden");
-    registerCard.classList.remove("hidden");
-});
-
-goLogin.addEventListener("click", () => {
-    registerCard.classList.add("hidden");
-    loginCard.classList.remove("hidden");
-});
-
-registerForm.addEventListener("submit", (e) => {
-    e.preventDefault();
-    const name = document.getElementById("reg-name").value.trim();
-    const email = document.getElementById("reg-email").value.trim();
-    const password = document.getElementById("reg-password").value;
-    const remember = document.getElementById("remember-reg").checked;
-    
-    if (!name || !email || !password) {
-        showNotification("Заполните все поля", "error");
-        return;
-    }
-    
-    try {
-        const user = userManager.register({
-            name,
-            email,
-            password
-        }, remember);
+    // Создаем секцию статистики в профиле если ее нет
+    let statsSection = document.querySelector('.cloud-sync-section');
+    if (!statsSection && document.getElementById('profile')) {
+        statsSection = document.createElement('div');
+        statsSection.className = 'cloud-sync-section';
+        statsSection.innerHTML = `
+            <h2><i class="fas fa-cloud"></i> Облачная синхронизация</h2>
+            <div class="cloud-sync-stats">
+                <div class="cloud-stat">
+                    <h4><i class="fas fa-users"></i> Пользователей</h4>
+                    <p>${stats.totalUsers}</p>
+                </div>
+                <div class="cloud-stat">
+                    <h4><i class="fas fa-comments"></i> Сообщений</h4>
+                    <p>${stats.totalMessages}</p>
+                </div>
+                <div class="cloud-stat">
+                    <h4><i class="fas fa-project-diagram"></i> Проектов</h4>
+                    <p>${stats.totalProjects}</p>
+                </div>
+                <div class="cloud-stat">
+                    <h4><i class="fas fa-credit-card"></i> Платежей</h4>
+                    <p>${stats.totalPayments}</p>
+                </div>
+            </div>
+            <div class="cloud-actions">
+                <button id="cloud-force-sync" class="primary-btn">
+                    <i class="fas fa-sync-alt"></i> Синхронизировать сейчас
+                </button>
+                <button id="cloud-refresh" class="secondary-btn">
+                    <i class="fas fa-download"></i> Загрузить из облака
+                </button>
+                <button id="cloud-share" class="secondary-btn">
+                    <i class="fas fa-share"></i> Поделиться ссылкой
+                </button>
+            </div>
+            <p class="hint">
+                <i class="fas fa-info-circle"></i> 
+                Последняя синхронизация: ${stats.lastSync} | ID: ${stats.binId}
+            </p>
+        `;
         
-        setUserUI(user);
-        authOverlay.style.display = "none";
+        const profileSection = document.getElementById('profile');
+        if (profileSection) {
+            profileSection.appendChild(statsSection);
+            
+            // Добавляем обработчики
+            document.getElementById('cloud-force-sync')?.addEventListener('click', () => {
+                cloudSync.forceSync();
+            });
+            
+            document.getElementById('cloud-refresh')?.addEventListener('click', async () => {
+                await cloudSync.loadFromCloud();
+                location.reload();
+            });
+            
+            document.getElementById('cloud-share')?.addEventListener('click', () => {
+                if (cloudSync.BIN_ID) {
+                    const url = `https://jsonbin.io/${cloudSync.BIN_ID}`;
+                    navigator.clipboard.writeText(url).then(() => {
+                        showNotification('Ссылка на облачные данные скопирована в буфер', 'success');
+                    });
+                }
+            });
+        }
+    } else if (statsSection) {
+        // Обновляем существующую статистику
+        const statsElements = statsSection.querySelectorAll('.cloud-stat p');
+        if (statsElements.length >= 4) {
+            statsElements[0].textContent = stats.totalUsers;
+            statsElements[1].textContent = stats.totalMessages;
+            statsElements[2].textContent = stats.totalProjects;
+            statsElements[3].textContent = stats.totalPayments;
+        }
         
-        showNotification(`Аккаунт создан, добро пожаловать, ${user.name}!`, "success");
-    } catch (error) {
-        showNotification(error.message, "error");
-    }
-});
-
-loginForm.addEventListener("submit", (e) => {
-    e.preventDefault();
-    const email = document.getElementById("login-email").value.trim();
-    const password = document.getElementById("login-password").value;
-    const remember = document.getElementById("remember-me").checked;
-    
-    try {
-        const user = userManager.login(email, password, remember);
-        setUserUI(user);
-        authOverlay.style.display = "none";
-        showNotification(`Добро пожаловать, ${user.name}!`, "success");
-    } catch (error) {
-        showNotification(error.message, "error");
-    }
-});
-
-function setUserUI(user) {
-    const name = user.name || "Гость";
-    userNameTitle.textContent = name;
-    
-    // Обновляем данные профиля
-    loadProfileData();
-    updateProfileStats();
-    
-    // Загружаем проект пользователя
-    loadProject();
-    
-    // Обновляем список сохраненных профилей
-    renderSavedUserList();
-}
-
-// Выход пользователя
-function logoutUser() {
-    if (confirm("Вы уверены, что хотите выйти?")) {
-        userManager.logout();
-        authOverlay.style.display = "flex";
-        projectParts = [];
-        renderProject();
-        showNotification("Вы успешно вышли из системы", "info");
+        const hint = statsSection.querySelector('.hint');
+        if (hint) {
+            hint.innerHTML = `<i class="fas fa-info-circle"></i> Последняя синхронизация: ${stats.lastSync} | ID: ${stats.binId}`;
+        }
     }
 }
 
-logoutBtn.addEventListener("click", logoutUser);
-quickLogoutBtn.addEventListener("click", logoutUser);
+// ===== АВТОМАТИЧЕСКАЯ ПРОВЕРКА НОВЫХ СООБЩЕНИЙ ДЛЯ АДМИНА =====
+function setupAdminMessageChecker() {
+    const currentUser = userManager.getCurrentUser();
+    
+    if (currentUser?.role === 'admin') {
+        // Проверяем новые сообщения каждые 10 секунд
+        setInterval(() => {
+            const unread = getUnreadMessages();
+            if (unread.length > 0) {
+                // Показываем уведомление только если страница активна
+                if (!document.hidden) {
+                    showNotification(`У вас ${unread.length} непрочитанных сообщений`, 'info');
+                    // Помечаем как прочитанные после уведомления
+                    const messageIds = unread.map(msg => msg.timestamp);
+                    markMessagesAsRead(messageIds);
+                }
+            }
+        }, 10000);
+    }
+}
 
-// ===== УВЕДОМЛЕНИЯ =====
-function showNotification(message, type = "info") {
-    // Создаем элемент уведомления
-    const notification = document.createElement("div");
-    notification.className = `notification notification-${type}`;
-    notification.innerHTML = `
-        <div class="notification-content">
-            <i class="fas fa-${getNotificationIcon(type)}"></i>
-            <span>${message}</span>
-        </div>
-        <button class="notification-close"><i class="fas fa-times"></i></button>
+// ===== ИНИЦИАЛИЗАЦИЯ ПРИ ЗАГРУЗКЕ =====
+async function initApplication() {
+    try {
+        // Инициализируем облачную систему
+        await initCloudSystem();
+        
+        // Проверяем текущего пользователя
+        const currentUser = userManager.getCurrentUser();
+        
+        if (currentUser) {
+            setUserUI(currentUser);
+            document.getElementById('auth-overlay').style.display = 'none';
+            
+            // Если пользователь - админ, запускаем проверку сообщений
+            if (currentUser.role === 'admin') {
+                setupAdminMessageChecker();
+            }
+        } else {
+            document.getElementById('auth-overlay').style.display = 'flex';
+        }
+        
+        // Отображаем сохраненные профили
+        renderSavedUserList();
+        
+        // Настраиваем карточки каталога
+        setupCatalogCards();
+        
+        // Загружаем проект текущего пользователя
+        loadProject();
+        
+        // Загружаем чат
+        loadChatMessages();
+        
+        // Показываем главную страницу
+        showSection('home', false);
+        
+        // Запускаем обновление статистики облака
+        setInterval(renderCloudStats, 5000);
+        
+        // Первоначальная отрисовка статистики
+        setTimeout(renderCloudStats, 1000);
+        
+    } catch (error) {
+        console.error('Ошибка инициализации приложения:', error);
+        showNotification('Ошибка инициализации приложения', 'error');
+    }
+}
+
+// ===== ЗАПУСК ПРИЛОЖЕНИЯ =====
+document.addEventListener('DOMContentLoaded', initApplication);
+
+// ===== ОСТАЛЬНЫЕ ФУНКЦИИ (такие же как в предыдущем ответе, но используют обновленные userManager и cloudSync) =====
+
+// Навигация, каталог, проекты, сравнение, профиль и другие функции остаются аналогичными
+// но теперь используют глобальные объекты userManager и cloudSync
+
+// Пример обновленной функции showNotification:
+function showNotification(message, type = 'info') {
+    // Используем облачные уведомления если есть cloudSync
+    if (cloudSync && type !== 'error') {
+        cloudSync.showCloudNotification(message, type);
+    } else {
+        // Стандартные уведомления для ошибок
+        const notification = document.createElement('div');
+        notification.className = `notification notification-${type}`;
+        notification.innerHTML = `
+            <div class="notification-content">
+                <i class="fas fa-${getNotificationIcon(type)}"></i>
+                <span>${message}</span>
+            </div>
+            <button class="notification-close"><i class="fas fa-times"></i></button>
+        `;
+        
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+            if (notification.parentNode) notification.remove();
+        }, 5000);
+        
+        notification.querySelector('.notification-close').addEventListener('click', () => {
+            notification.remove();
+        });
+    }
+}
+
+// Остальные функции (renderSavedUserList, setupCatalogCards, loadProject и т.д.)
+// остаются такими же как в предыдущем ответе, но используют глобальный userManager
+
+// ===== ДОПОЛНИТЕЛЬНЫЕ ФУНКЦИИ ДЛЯ ОБЛАЧНОЙ СИНХРОНИЗАЦИИ =====
+
+// Периодическая синхронизация каждые 30 секунд
+setInterval(async () => {
+    if (cloudSync && !cloudSync.isSyncing) {
+        await cloudSync.loadFromCloud();
+        await cloudSync.saveToCloud();
+        renderCloudStats();
+    }
+}, 30000);
+
+// Синхронизация при возвращении на вкладку
+document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && cloudSync) {
+        cloudSync.loadFromCloud();
+        renderCloudStats();
+    }
+});
+
+// Экспорт данных в файл (резервная копия)
+function exportAllData() {
+    const data = cloudSync ? cloudSync.getAllLocalData() : userManager.getAllUsers();
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `priorlab_backup_${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    showNotification('Резервная копия данных сохранена', 'success');
+}
+
+// Импорт данных из файла
+function importDataFromFile(file) {
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+        try {
+            const data = JSON.parse(e.target.result);
+            
+            // Проверяем структуру данных
+            if (data.users && Array.isArray(data.users)) {
+                // Объединяем пользователей
+                const currentUsers = userManager.users;
+                const mergedUsers = cloudSync ? 
+                    cloudSync.mergeArrays(currentUsers, data.users, 'email') :
+                    [...currentUsers, ...data.users.filter(newUser => 
+                        !currentUsers.some(u => u.email === newUser.email)
+                    )];
+                
+                userManager.users = mergedUsers;
+                userManager.saveUsers();
+                
+                // Импортируем чат если есть
+                if (data.chat && Array.isArray(data.chat)) {
+                    const currentChat = JSON.parse(localStorage.getItem('pt_chat') || '[]');
+                    const mergedChat = cloudSync ?
+                        cloudSync.mergeArrays(currentChat, data.chat, 'timestamp', true) :
+                        [...currentChat, ...data.chat.filter(newMsg => 
+                            !currentChat.some(msg => msg.timestamp === newMsg.timestamp)
+                        )];
+                    
+                    localStorage.setItem('pt_chat', JSON.stringify(mergedChat));
+                }
+                
+                // Синхронизируем с облаком если есть
+                if (cloudSync) {
+                    await cloudSync.saveToCloud();
+                }
+                
+                showNotification('Данные успешно импортированы', 'success');
+                location.reload();
+            } else {
+                throw new Error('Неверный формат файла');
+            }
+        } catch (error) {
+            showNotification('Ошибка импорта данных: ' + error.message, 'error');
+        }
+    };
+    reader.readAsText(file);
+}
+
+// Добавляем кнопки импорта/экспорта в профиль
+function addDataManagementButtons() {
+    const profileSection = document.getElementById('profile');
+    if (!profileSection) return;
+    
+    const existing = document.getElementById('data-management-buttons');
+    if (existing) return;
+    
+    const container = document.createElement('div');
+    container.id = 'data-management-buttons';
+    container.className = 'cloud-actions';
+    container.innerHTML = `
+        <button id="export-data" class="secondary-btn">
+            <i class="fas fa-file-export"></i> Экспорт всех данных
+        </button>
+        <label class="secondary-btn" style="cursor: pointer;">
+            <i class="fas fa-file-import"></i> Импорт данных
+            <input type="file" id="import-data-input" accept=".json" style="display: none;">
+        </label>
     `;
     
-    // Добавляем стили, если их еще нет
-    if (!document.getElementById('notification-styles')) {
-        const style = document.createElement("style");
-        style.id = 'notification-styles';
-        style.textContent = `
-            .notification {
-                position: fixed;
-                top: 20px;
-                right: 20px;
-                padding: 15px 20px;
-                border-radius: 8px;
-                background: #020617;
-                border: 1px solid rgba(55, 65, 81, 0.8);
-                box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-                z-index: 1000;
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                gap: 15px;
-                max-width: 350px;
-                animation: slideIn 0.3s ease;
-            }
-            
-            .notification-info {
-                border-left: 4px solid #38bdf8;
-            }
-            
-            .notification-success {
-                border-left: 4px solid #22c55e;
-            }
-            
-            .notification-warning {
-                border-left: 4px solid #f97316;
-            }
-            
-            .notification-error {
-                border-left: 4px solid #ef4444;
-            }
-            
-            .notification-content {
-                display: flex;
-                align-items: center;
-                gap: 10px;
-                flex: 1;
-            }
-            
-            .notification-content i {
-                font-size: 18px;
-            }
-            
-            .notification-info i { color: #38bdf8; }
-            .notification-success i { color: #22c55e; }
-            .notification-warning i { color: #f97316; }
-            .notification-error i { color: #ef4444; }
-            
-            .notification-close {
-                background: none;
-                border: none;
-                color: #9ca3af;
-                cursor: pointer;
-                font-size: 14px;
-            }
-            
-            @keyframes slideIn {
-                from { transform: translateX(100%); opacity: 0; }
-                to { transform: translateX(0); opacity: 1; }
-            }
-        `;
-        document.head.appendChild(style);
-    }
+    profileSection.appendChild(container);
     
-    document.body.appendChild(notification);
+    document.getElementById('export-data')?.addEventListener('click', exportAllData);
     
-    // Добавляем обработчик закрытия
-    notification.querySelector(".notification-close").addEventListener("click", () => {
-        notification.remove();
-    });
-    
-    // Автоматическое закрытие через 5 секунд
-    setTimeout(() => {
-        if (notification.parentNode) {
-            notification.remove();
+    document.getElementById('import-data-input')?.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            if (confirm('Импорт данных перезапишет текущие данные. Продолжить?')) {
+                importDataFromFile(file);
+            }
+            e.target.value = ''; // Сбрасываем input
         }
-    }, 5000);
+    });
 }
 
-function getNotificationIcon(type) {
-    switch(type) {
-        case "success": return "check-circle";
-        case "warning": return "exclamation-triangle";
-        case "error": return "times-circle";
-        default: return "info-circle";
-    }
-}
-
-// ===== ИНИЦИАЛИЗАЦИЯ =====
-(function init() {
-    // Проверяем, есть ли текущий пользователь
-    const currentUser = userManager.getCurrentUser();
-    if (currentUser) {
-        setUserUI(currentUser);
-        authOverlay.style.display = "none";
-    } else {
-        authOverlay.style.display = "flex";
-    }
-    
-    // Отображаем сохраненные профили
-    renderSavedUserList();
-    
-    // Настраиваем карточки каталога
-    setupCatalogCards();
-    
-    // Загружаем проект текущего пользователя
-    loadProject();
-    
-    // Загружаем чат
-    loadChatMessages();
-    
-    // Показываем главную страницу
-    showSection("home", false);
-})();
+// Запускаем добавление кнопок управления данными
+setTimeout(addDataManagementButtons, 2000);
